@@ -1,0 +1,461 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Header from "@/components/layout/header";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Wallet, 
+  ChartPie, 
+  TrendingUp, 
+  Clock, 
+  Trophy
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartsTooltip,
+  Legend as RechartsLegend
+} from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+
+interface PortfolioItem {
+  id: number;
+  protocolName: string;
+  asset: string;
+  invested: number;
+  currentValue: number;
+  apy: number;
+  yield: number;
+  timestamp: string;
+}
+
+// Mock data until API endpoint is added
+const MOCK_PORTFOLIO_DATA = [
+  {
+    id: 1,
+    protocolName: "Aave v3",
+    asset: "USDC",
+    invested: 1000,
+    currentValue: 1084,
+    apy: 18.4,
+    yield: 84,
+    timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 2,
+    protocolName: "Compound",
+    asset: "ETH",
+    invested: 1500,
+    currentValue: 1670,
+    apy: 12.9,
+    yield: 170,
+    timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 3,
+    protocolName: "Curve Finance",
+    asset: "3pool",
+    invested: 800,
+    currentValue: 835,
+    apy: 8.2,
+    yield: 35,
+    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+];
+
+export default function Portfolio() {
+  const [activeTab, setActiveTab] = useState("overview");
+  
+  // In a real app, we would fetch this data from the API
+  const { data: portfolioItems, isLoading } = useQuery<PortfolioItem[]>({
+    queryKey: ["/api/portfolio"],
+    queryFn: async () => {
+      // Mock data for now
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(MOCK_PORTFOLIO_DATA), 1000);
+      });
+    }
+  });
+  
+  const totalInvested = portfolioItems?.reduce((sum, item) => sum + item.invested, 0) || 0;
+  const totalCurrentValue = portfolioItems?.reduce((sum, item) => sum + item.currentValue, 0) || 0;
+  const totalYield = portfolioItems?.reduce((sum, item) => sum + item.yield, 0) || 0;
+  const portfolioGrowth = totalInvested > 0 ? ((totalCurrentValue - totalInvested) / totalInvested) * 100 : 0;
+  
+  const pieChartData = portfolioItems?.map(item => ({
+    name: `${item.protocolName} (${item.asset})`,
+    value: item.currentValue
+  })) || [];
+  
+  const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444'];
+  
+  return (
+    <div>
+      <Header title="Portfolio" />
+      
+      <div className="p-4 md:p-6">
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="assets">Assets</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        <TabsContent value="overview" className="mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <h3 className="text-lg font-bold flex items-center">
+                    <Wallet className="mr-2 h-5 w-5" />
+                    Portfolio Overview
+                  </h3>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">Total Value</div>
+                      {isLoading ? (
+                        <Skeleton className="h-7 w-24 mt-1" />
+                      ) : (
+                        <div className="text-xl font-bold">${totalCurrentValue.toLocaleString()}</div>
+                      )}
+                    </div>
+                    
+                    <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">Total Invested</div>
+                      {isLoading ? (
+                        <Skeleton className="h-7 w-24 mt-1" />
+                      ) : (
+                        <div className="text-xl font-bold">${totalInvested.toLocaleString()}</div>
+                      )}
+                    </div>
+                    
+                    <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">Total Yield</div>
+                      {isLoading ? (
+                        <Skeleton className="h-7 w-24 mt-1" />
+                      ) : (
+                        <div className="text-xl font-bold text-green-500">+${totalYield.toLocaleString()}</div>
+                      )}
+                    </div>
+                    
+                    <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">Growth</div>
+                      {isLoading ? (
+                        <Skeleton className="h-7 w-24 mt-1" />
+                      ) : (
+                        <div className="text-xl font-bold text-green-500">+{portfolioGrowth.toFixed(2)}%</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <h4 className="text-sm font-medium mb-4 flex items-center">
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Performance Metrics
+                    </h4>
+                    
+                    {isLoading ? (
+                      <div className="space-y-4">
+                        <Skeleton className="h-6 w-full" />
+                        <Skeleton className="h-6 w-full" />
+                        <Skeleton className="h-6 w-full" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">ROI</span>
+                            <span className="text-sm font-medium">{(portfolioGrowth).toFixed(2)}%</span>
+                          </div>
+                          <Progress value={Math.min(portfolioGrowth, 100)} className="h-2" />
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Avg. APY</span>
+                            <span className="text-sm font-medium">
+                              {(portfolioItems?.reduce((sum, item) => sum + item.apy, 0) || 0) / (portfolioItems?.length || 1)}%
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min(
+                              (portfolioItems?.reduce((sum, item) => sum + item.apy, 0) || 0) / (portfolioItems?.length || 1),
+                              100
+                            )} 
+                            className="h-2" 
+                          />
+                        </div>
+                        
+                        <div>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Risk Exposure</span>
+                            <span className="text-sm font-medium">Low-Medium</span>
+                          </div>
+                          <Progress value={35} className="h-2" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div>
+              <Card className="h-full">
+                <CardHeader className="pb-2">
+                  <h3 className="text-lg font-bold flex items-center">
+                    <ChartPie className="mr-2 h-5 w-5" />
+                    Portfolio Composition
+                  </h3>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="h-64 flex items-center justify-center">
+                      <Skeleton className="h-48 w-48 rounded-full" />
+                    </div>
+                  ) : pieChartData.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPieChart>
+                          <Pie
+                            data={pieChartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {pieChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip />
+                          <RechartsLegend />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="text-neutral-500 dark:text-neutral-400 mb-2">No assets in portfolio</p>
+                        <Button>Start Investing</Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <h3 className="font-bold">Portfolio Assets</h3>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array(3).fill(null).map((_, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <Skeleton className="h-6 w-48 mb-2" />
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : portfolioItems && portfolioItems.length > 0 ? (
+                <div className="space-y-4">
+                  {portfolioItems.map(item => (
+                    <div key={item.id} className="border rounded-lg p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
+                      <h4 className="font-medium text-lg mb-2">{item.protocolName} - {item.asset}</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3">
+                        <div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400">Invested</div>
+                          <div className="font-medium">${item.invested.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400">Current Value</div>
+                          <div className="font-medium">${item.currentValue.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400">APY</div>
+                          <div className="font-medium text-green-500">{item.apy.toFixed(1)}%</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400">Yield</div>
+                          <div className="font-medium text-green-500">+${item.yield.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex justify-end space-x-2">
+                        <Button variant="outline" size="sm">Withdraw</Button>
+                        <Button size="sm">Add Funds</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium mb-2">Your portfolio is empty</h3>
+                  <p className="text-neutral-500 dark:text-neutral-400 mb-4">
+                    Start by investing in some of our recommended yield opportunities
+                  </p>
+                  <Button>Browse Opportunities</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="assets" className="mt-0">
+          <Card>
+            <CardHeader>
+              <h3 className="font-bold flex items-center">
+                <Trophy className="mr-2 h-5 w-5" />
+                Asset Performance
+              </h3>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array(3).fill(null).map((_, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <Skeleton className="h-6 w-48 mb-2" />
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-5 w-24" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : portfolioItems && portfolioItems.length > 0 ? (
+                <div className="space-y-4">
+                  {portfolioItems
+                    .sort((a, b) => b.apy - a.apy)
+                    .map(item => (
+                      <div key={item.id} className="border rounded-lg p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors">
+                        <div className="flex justify-between mb-2">
+                          <h4 className="font-medium text-lg">{item.protocolName} - {item.asset}</h4>
+                          <div className="text-green-500 font-medium">{item.apy.toFixed(1)}% APY</div>
+                        </div>
+                        <div className="mb-3">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm">Performance</span>
+                            <span className="text-sm font-medium">
+                              {((item.currentValue - item.invested) / item.invested * 100).toFixed(2)}%
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min(((item.currentValue - item.invested) / item.invested * 100), 100)} 
+                            className="h-2" 
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3">
+                          <div>
+                            <div className="text-sm text-neutral-500 dark:text-neutral-400">Invested</div>
+                            <div className="font-medium">${item.invested.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-neutral-500 dark:text-neutral-400">Current Value</div>
+                            <div className="font-medium">${item.currentValue.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-neutral-500 dark:text-neutral-400">Yield</div>
+                            <div className="font-medium text-green-500">+${item.yield.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-neutral-500 dark:text-neutral-400">Yield %</div>
+                            <div className="font-medium text-green-500">
+                              +{((item.yield / item.invested) * 100).toFixed(2)}%
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium mb-2">No assets to display</h3>
+                  <p className="text-neutral-500 dark:text-neutral-400 mb-4">
+                    Start by investing in some of our recommended yield opportunities
+                  </p>
+                  <Button>Browse Opportunities</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="history" className="mt-0">
+          <Card>
+            <CardHeader>
+              <h3 className="font-bold flex items-center">
+                <Clock className="mr-2 h-5 w-5" />
+                Investment History
+              </h3>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array(5).fill(null).map((_, index) => (
+                    <div key={index} className="flex space-x-3 border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="flex-1">
+                        <Skeleton className="h-5 w-40 mb-1" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <Skeleton className="h-10 w-20" />
+                    </div>
+                  ))}
+                </div>
+              ) : portfolioItems && portfolioItems.length > 0 ? (
+                <div className="space-y-4">
+                  {portfolioItems
+                    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    .map(item => (
+                      <div key={item.id} className="flex items-center space-x-3 border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
+                        <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                          <TrendingUp className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">Invested in {item.protocolName} - {item.asset}</div>
+                          <div className="text-sm text-neutral-500 dark:text-neutral-400">
+                            {new Date(item.timestamp).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">${item.invested.toLocaleString()}</div>
+                          <div className="text-sm text-green-500">{item.apy.toFixed(1)}% APY</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-medium mb-2">No investment history</h3>
+                  <p className="text-neutral-500 dark:text-neutral-400 mb-4">
+                    Your investment history will appear here
+                  </p>
+                  <Button>Make Your First Investment</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </div>
+    </div>
+  );
+}
