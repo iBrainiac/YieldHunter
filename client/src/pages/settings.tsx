@@ -53,23 +53,23 @@ export default function SettingsPage() {
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="agent" className="mt-6">
+            <AgentSettings />
+          </TabsContent>
+          
+          <TabsContent value="account" className="mt-6">
+            <AccountSettings />
+          </TabsContent>
+          
+          <TabsContent value="notifications" className="mt-6">
+            <NotificationSettings />
+          </TabsContent>
+          
+          <TabsContent value="security" className="mt-6">
+            <SecuritySettings />
+          </TabsContent>
         </Tabs>
-        
-        <TabsContent value="agent" className="mt-0">
-          <AgentSettings />
-        </TabsContent>
-        
-        <TabsContent value="account" className="mt-0">
-          <AccountSettings />
-        </TabsContent>
-        
-        <TabsContent value="notifications" className="mt-0">
-          <NotificationSettings />
-        </TabsContent>
-        
-        <TabsContent value="security" className="mt-0">
-          <SecuritySettings />
-        </TabsContent>
       </div>
     </div>
   );
