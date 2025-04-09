@@ -27,13 +27,16 @@ export const walletConnectConnector = new WalletConnectConnector({
   qrcode: true
 });
 
-export type WalletType = 'metamask' | 'walletconnect';
+export type WalletType = 'metamask' | 'walletconnect' | 'smartwallet';
 
+// For smart wallet, we'll use WalletConnect as the underlying protocol
+// but will handle account abstraction separately
 export const getConnector = (walletType: WalletType) => {
   switch (walletType) {
     case 'metamask':
       return injectedConnector;
     case 'walletconnect':
+    case 'smartwallet': // Smart wallets typically connect via WalletConnect protocol
       return walletConnectConnector;
     default:
       return injectedConnector;

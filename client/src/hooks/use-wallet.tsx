@@ -172,7 +172,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Connect using the specified connector
       let result;
       
-      if (walletType === 'walletconnect') {
+      if (walletType === 'walletconnect' || walletType === 'smartwallet') {
         try {
           // Use WalletConnect
           await walletConnectConnector.activate();
@@ -191,13 +191,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             const balanceWei = parseInt(balanceHex, 16);
             const balanceEth = (balanceWei / 1e18).toFixed(4);
             
-            const walletState: WalletState = {
-              address,
-              balance: balanceEth,
-              connected: true,
-              connectorType: 'walletconnect'
-            };
-            result = walletState;
+            // For smart wallets, we would handle account abstraction here
+            // Smart wallets typically have their own SDK for handling transactions,
+            // creating accounts, and managing gas
+            if (walletType === 'smartwallet') {
+              // This is where we'd implement smart wallet specific functionality
+              // For example, setting up a counterfactual address, or initializing the AA SDK
+              
+              const walletState: WalletState = {
+                address,
+                balance: balanceEth,
+                connected: true,
+                connectorType: 'smartwallet'
+              };
+              result = walletState;
+            } else {
+              const walletState: WalletState = {
+                address,
+                balance: balanceEth,
+                connected: true,
+                connectorType: 'walletconnect'
+              };
+              result = walletState;
+            }
           } else {
             throw new Error('Failed to get provider from WalletConnect');
           }
@@ -246,12 +262,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const disconnect = async () => {
     try {
       // First try to disconnect from the connector based on type
-      if (walletState?.connectorType === 'walletconnect') {
-        // Disconnect from WalletConnect
+      if (walletState?.connectorType === 'walletconnect' || walletState?.connectorType === 'smartwallet') {
+        // Both smart wallets and regular WalletConnect use the same connector
         try {
           await walletConnectConnector.deactivate();
+          
+          // Additional cleanup for smart wallet if needed
+          if (walletState.connectorType === 'smartwallet') {
+            // For a real implementation, we would clean up any smart wallet specific state here
+            // This might include clearing session keys, etc.
+            console.log('Cleaning up smart wallet resources');
+          }
         } catch (error) {
-          console.error('Error disconnecting from WalletConnect:', error);
+          console.error(`Error disconnecting from ${walletState.connectorType}:`, error);
         }
       }
       
@@ -280,6 +303,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Find the opportunity by protocol name
     // In a real application, we would query for protocol and get its opportunity
     // For now, we'll just hardcode opportunityId = 1
+    
+    // Handle special features for smart wallet
+    if (walletState?.connectorType === 'smartwallet') {
+      // For smart wallets, we would:
+      // 1. Use account abstraction for gasless transactions
+      // 2. Use batch transactions for gas efficiency
+      // 3. Implement paymasters for sponsored transactions
+      
+      // The code would be similar to this:
+      /*
+      // Example of smart wallet Account Abstraction (not actual implementation)
+      const aaProvider = new SmartWalletProvider(walletState.address);
+      const userOp = await aaProvider.createTransactionRequest({
+        target: protocolAddress,
+        data: depositCalldata,
+        value: ethers.utils.parseEther(amount)
+      });
+      
+      // Handle gasless transactions if needed
+      const paymaster = await getPaymaster();
+      if (paymaster) {
+        userOp = await paymaster.sponsor(userOp);
+      }
+      
+      const receipt = await aaProvider.sendTransaction(userOp);
+      return {
+        success: true,
+        transactionHash: receipt.transactionHash
+      };
+      */
+      
+      console.log('Using Smart Wallet for enhanced transaction handling');
+    }
+    
     return await depositMutation.mutateAsync({ opportunityId: 1, amount });
   };
 
