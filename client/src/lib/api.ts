@@ -27,6 +27,19 @@ interface AgentConfigParams {
   maxAgents?: number;
 }
 
+interface YieldStrategyParams {
+  name: string;
+  description?: string;
+  triggerType: string;
+  targetProtocols: number[];
+  targetNetworks: number[];
+  conditions: Record<string, any>;
+  actions: Record<string, any>;
+  maxGasFee?: number;
+  nextScheduledExecution?: Date;
+  settings?: Record<string, any>;
+}
+
 // Add protocols and networks API functions
 export const protocolsApi = {
   getAll: async () => {
@@ -215,6 +228,58 @@ export const api = {
     // Start parallel scanning with multiple agents
     startParallelScan: async (configId: number = 1) => {
       const response = await apiRequest("POST", "/api/parallel-scan", { configurationId: configId });
+      return response.json();
+    }
+  },
+  
+  // Automated yield farming strategies
+  yieldStrategy: {
+    // Get all strategies
+    getAll: async (userId?: number) => {
+      const url = userId ? `/api/yield-strategies?userId=${userId}` : "/api/yield-strategies";
+      const response = await apiRequest("GET", url);
+      return response.json();
+    },
+    
+    // Get a specific strategy
+    get: async (id: number) => {
+      const response = await apiRequest("GET", `/api/yield-strategies/${id}`);
+      return response.json();
+    },
+    
+    // Create a new strategy
+    create: async (data: YieldStrategyParams) => {
+      const response = await apiRequest("POST", "/api/yield-strategies", data);
+      return response.json();
+    },
+    
+    // Update an existing strategy
+    update: async (id: number, data: Partial<YieldStrategyParams>) => {
+      const response = await apiRequest("PUT", `/api/yield-strategies/${id}`, data);
+      return response.json();
+    },
+    
+    // Delete a strategy
+    delete: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/yield-strategies/${id}`);
+      return response.json();
+    },
+    
+    // Execute a strategy
+    execute: async (id: number) => {
+      const response = await apiRequest("POST", `/api/yield-strategies/${id}/execute`);
+      return response.json();
+    },
+    
+    // Get executions for a strategy
+    getExecutions: async (id: number) => {
+      const response = await apiRequest("GET", `/api/yield-strategies/${id}/executions`);
+      return response.json();
+    },
+    
+    // Get all executions
+    getAllExecutions: async () => {
+      const response = await apiRequest("GET", "/api/strategy-executions");
       return response.json();
     }
   }

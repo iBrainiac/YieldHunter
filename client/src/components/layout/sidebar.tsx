@@ -10,7 +10,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Cpu
+  Cpu,
+  Bot,
+  BarChart
 } from "lucide-react";
 
 interface NavItem {
@@ -44,6 +46,11 @@ const navItems: NavItem[] = [
     title: "AI Agents",
     href: "/agents",
     icon: <Cpu className="h-5 w-5 mr-3" />,
+  },
+  {
+    title: "Yield Strategies",
+    href: "/strategies",
+    icon: <BarChart className="h-5 w-5 mr-3" />,
   },
   {
     title: "Settings",

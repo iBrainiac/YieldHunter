@@ -1,5 +1,6 @@
 import { 
-  users, protocols, networks, opportunities, socialPosts, activities, agentConfigurations, agentInstances,
+  users, protocols, networks, opportunities, socialPosts, activities, 
+  agentConfigurations, agentInstances, yieldStrategies, strategyExecutions,
   type User, type InsertUser, 
   type Protocol, type InsertProtocol,
   type Network, type InsertNetwork,
@@ -7,7 +8,9 @@ import {
   type SocialPost, type InsertSocialPost,
   type Activity, type InsertActivity,
   type AgentConfiguration, type InsertAgentConfiguration,
-  type AgentInstance, type InsertAgentInstance
+  type AgentInstance, type InsertAgentInstance,
+  type YieldStrategy, type InsertYieldStrategy,
+  type StrategyExecution, type InsertStrategyExecution
 } from "@shared/schema";
 
 // Storage interface with CRUD methods
@@ -55,6 +58,19 @@ export interface IStorage {
   createAgentInstance(instance: InsertAgentInstance): Promise<AgentInstance>;
   updateAgentInstance(id: number, data: Partial<InsertAgentInstance>): Promise<AgentInstance | undefined>;
   deleteAgentInstance(id: number): Promise<boolean>;
+  
+  // Yield farming strategy methods
+  getYieldStrategies(userId?: number): Promise<YieldStrategy[]>;
+  getYieldStrategy(id: number): Promise<YieldStrategy | undefined>;
+  createYieldStrategy(strategy: InsertYieldStrategy): Promise<YieldStrategy>;
+  updateYieldStrategy(id: number, data: Partial<InsertYieldStrategy>): Promise<YieldStrategy | undefined>;
+  deleteYieldStrategy(id: number): Promise<boolean>;
+  
+  // Strategy execution methods
+  getStrategyExecutions(strategyId?: number): Promise<StrategyExecution[]>;
+  getStrategyExecution(id: number): Promise<StrategyExecution | undefined>;
+  createStrategyExecution(execution: InsertStrategyExecution): Promise<StrategyExecution>;
+  executeYieldStrategy(strategyId: number): Promise<StrategyExecution>;
 }
 
 export class MemStorage implements IStorage {
@@ -66,6 +82,8 @@ export class MemStorage implements IStorage {
   private activities: Map<number, Activity>;
   private agentConfigurations: Map<number, AgentConfiguration>;
   private agentInstances: Map<number, AgentInstance>;
+  private yieldStrategies: Map<number, YieldStrategy>;
+  private strategyExecutions: Map<number, StrategyExecution>;
   
   private userId: number;
   private protocolId: number;
@@ -75,6 +93,8 @@ export class MemStorage implements IStorage {
   private activityId: number;
   private configId: number;
   private instanceId: number;
+  private strategyId: number;
+  private executionId: number;
 
   constructor() {
     this.users = new Map();
@@ -85,6 +105,8 @@ export class MemStorage implements IStorage {
     this.activities = new Map();
     this.agentConfigurations = new Map();
     this.agentInstances = new Map();
+    this.yieldStrategies = new Map();
+    this.strategyExecutions = new Map();
     
     this.userId = 1;
     this.protocolId = 1;
@@ -94,6 +116,8 @@ export class MemStorage implements IStorage {
     this.activityId = 1;
     this.configId = 1;
     this.instanceId = 1;
+    this.strategyId = 1;
+    this.executionId = 1;
     
     // Initialize with sample data for demo (using IIFE to handle async)
     (async () => {
@@ -211,6 +235,67 @@ export class MemStorage implements IStorage {
       currentTask: "Monitoring Base liquidity pools",
       performance: { successRate: 99, lastFound: "2023-04-08T22:45:31Z", opportunitiesFound: 5 },
       configurationId: config.id
+    });
+    
+    // Initialize sample yield farming strategies
+    await this.createYieldStrategy({
+      name: "High APY Stablecoin Strategy",
+      description: "Automatically deposit to highest APY stablecoin pools across protocols",
+      status: "active",
+      userId: null,
+      conditions: {
+        minApy: 10,
+        maxRisk: "medium",
+        assetTypes: ["USDC", "USDT", "DAI"]
+      },
+      actions: {
+        depositAmount: "1000 USDC",
+        autoCompound: true,
+        rebalancePeriod: "weekly"
+      },
+      maxGasFee: 50, // Max gas fee in USD
+      triggerType: "apy-based",
+      nextScheduledExecution: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      targetProtocols: [1, 2, 4], // Aave, Compound, Curve
+      targetNetworks: [1, 2], // Ethereum, Polygon
+      settings: {
+        slippageTolerance: 0.5,
+        notificationsEnabled: true,
+        executionTimeWindow: {
+          start: "09:00",
+          end: "17:00"
+        }
+      }
+    });
+    
+    await this.createYieldStrategy({
+      name: "Base L2 LP Farming",
+      description: "Farm liquidity pools on Base L2 with automatic compounding",
+      status: "active",
+      userId: null,
+      conditions: {
+        minApy: 20,
+        maxRisk: "high",
+        assetTypes: ["ETH-LP", "USDC-LP"]
+      },
+      actions: {
+        depositAmount: "0.5 ETH",
+        autoCompound: true,
+        rebalancePeriod: "daily"
+      },
+      maxGasFee: 25, // Max gas fee in USD
+      triggerType: "time-based",
+      nextScheduledExecution: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours from now
+      targetProtocols: [5], // SushiSwap
+      targetNetworks: [7], // Base L2
+      settings: {
+        slippageTolerance: 1.0,
+        notificationsEnabled: true,
+        executionTimeWindow: {
+          start: "00:00",
+          end: "23:59"
+        }
+      }
     });
   }
 
@@ -422,6 +507,232 @@ export class MemStorage implements IStorage {
     });
     
     return true;
+  }
+  
+  // Yield strategy methods
+  async getYieldStrategies(userId?: number): Promise<YieldStrategy[]> {
+    const strategies = Array.from(this.yieldStrategies.values());
+    
+    if (userId !== undefined) {
+      return strategies.filter(strategy => strategy.userId === userId);
+    }
+    
+    return strategies;
+  }
+  
+  async getYieldStrategy(id: number): Promise<YieldStrategy | undefined> {
+    return this.yieldStrategies.get(id);
+  }
+  
+  async createYieldStrategy(strategy: InsertYieldStrategy): Promise<YieldStrategy> {
+    const id = this.strategyId++;
+    const createdAt = new Date();
+    
+    const newStrategy: YieldStrategy = {
+      ...strategy,
+      id,
+      createdAt,
+      status: strategy.status || "active",
+      lastExecutedAt: null,
+      totalExecutions: 0,
+      executionResults: {},
+      totalInvested: 0,
+      totalReturn: 0
+    };
+    
+    this.yieldStrategies.set(id, newStrategy);
+    
+    // Log strategy creation
+    this.createActivity({
+      type: "strategy",
+      description: `Created new yield farming strategy: ${strategy.name}`,
+      details: { 
+        strategyId: id, 
+        triggerType: strategy.triggerType,
+        targetProtocols: strategy.targetProtocols,
+        targetNetworks: strategy.targetNetworks
+      },
+      userId: strategy.userId
+    });
+    
+    return newStrategy;
+  }
+  
+  async updateYieldStrategy(id: number, data: Partial<InsertYieldStrategy>): Promise<YieldStrategy | undefined> {
+    const existingStrategy = this.yieldStrategies.get(id);
+    if (!existingStrategy) return undefined;
+    
+    const updatedStrategy: YieldStrategy = { ...existingStrategy, ...data };
+    this.yieldStrategies.set(id, updatedStrategy);
+    
+    // Log strategy update
+    this.createActivity({
+      type: "strategy",
+      description: `Updated yield farming strategy: ${existingStrategy.name}`,
+      details: { strategyId: id },
+      userId: existingStrategy.userId
+    });
+    
+    return updatedStrategy;
+  }
+  
+  async deleteYieldStrategy(id: number): Promise<boolean> {
+    const strategy = this.yieldStrategies.get(id);
+    if (!strategy) return false;
+    
+    this.yieldStrategies.delete(id);
+    
+    // Log strategy deletion
+    this.createActivity({
+      type: "strategy",
+      description: `Deleted yield farming strategy: ${strategy.name}`,
+      details: { strategyId: id },
+      userId: strategy.userId
+    });
+    
+    return true;
+  }
+  
+  // Strategy execution methods
+  async getStrategyExecutions(strategyId?: number): Promise<StrategyExecution[]> {
+    const executions = Array.from(this.strategyExecutions.values());
+    
+    if (strategyId !== undefined) {
+      return executions.filter(execution => execution.strategyId === strategyId);
+    }
+    
+    return executions;
+  }
+  
+  async getStrategyExecution(id: number): Promise<StrategyExecution | undefined> {
+    return this.strategyExecutions.get(id);
+  }
+  
+  async createStrategyExecution(execution: InsertStrategyExecution): Promise<StrategyExecution> {
+    const id = this.executionId++;
+    const executedAt = new Date();
+    
+    const newExecution: StrategyExecution = {
+      ...execution,
+      id,
+      executedAt
+    };
+    
+    this.strategyExecutions.set(id, newExecution);
+    
+    // Update the strategy with execution result
+    const strategy = this.yieldStrategies.get(execution.strategyId);
+    if (strategy) {
+      strategy.lastExecutedAt = executedAt;
+      strategy.totalExecutions++;
+      
+      // Update execution results history
+      if (strategy.executionResults) {
+        const executionResults = { ...strategy.executionResults };
+        executionResults[id] = {
+          status: execution.status,
+          executedAt,
+          transactionHash: execution.transactionHash,
+          details: execution.details
+        };
+        strategy.executionResults = executionResults;
+      } else {
+        strategy.executionResults = {
+          [id]: {
+            status: execution.status,
+            executedAt,
+            transactionHash: execution.transactionHash,
+            details: execution.details
+          }
+        };
+      }
+      
+      this.yieldStrategies.set(strategy.id, strategy);
+    }
+    
+    return newExecution;
+  }
+  
+  async executeYieldStrategy(strategyId: number): Promise<StrategyExecution> {
+    const strategy = this.yieldStrategies.get(strategyId);
+    if (!strategy) {
+      throw new Error(`Strategy with ID ${strategyId} not found`);
+    }
+    
+    // Find the best opportunity from the target protocols and networks
+    const targetProtocols = strategy.targetProtocols as number[];
+    const targetNetworks = strategy.targetNetworks as number[];
+    
+    const eligibleOpportunities = Array.from(this.opportunities.values())
+      .filter(opp => 
+        targetProtocols.includes(opp.protocolId) && 
+        targetNetworks.includes(opp.networkId)
+      )
+      .sort((a, b) => b.apy - a.apy);
+    
+    if (eligibleOpportunities.length === 0) {
+      // No eligible opportunity found
+      return this.createStrategyExecution({
+        strategyId,
+        status: "failed",
+        transactionHash: null,
+        gasUsed: null,
+        gasFee: null,
+        opportunityId: null,
+        details: { reason: "No eligible opportunities found" },
+        errorMessage: "No eligible opportunities found matching strategy criteria"
+      });
+    }
+    
+    // Select the best opportunity
+    const bestOpportunity = eligibleOpportunities[0];
+    
+    // Create a transaction execution record
+    const protocol = this.protocols.get(bestOpportunity.protocolId);
+    const network = this.networks.get(bestOpportunity.networkId);
+    
+    // Simulate transaction execution
+    const gasFee = Math.random() * 0.01; // Simulated gas fee
+    const gasUsed = Math.floor(Math.random() * 200000); // Simulated gas used
+    const transactionHash = `0x${Math.random().toString(16).substring(2)}${Math.random().toString(16).substring(2)}`;
+    
+    // Update strategy totals (for simulation)
+    const investmentAmount = 1.0; // 1 ETH for example
+    strategy.totalInvested += investmentAmount;
+    strategy.totalReturn += (investmentAmount * bestOpportunity.apy) / 100 / 365; // Daily return
+    
+    this.yieldStrategies.set(strategy.id, strategy);
+    
+    // Log strategy execution
+    this.createActivity({
+      type: "transaction",
+      description: `Executed yield strategy "${strategy.name}" on ${protocol?.name || 'Unknown protocol'} (${network?.name || 'Unknown network'})`,
+      details: { 
+        strategyId,
+        opportunityId: bestOpportunity.id,
+        apy: bestOpportunity.apy,
+        asset: bestOpportunity.asset,
+        transactionHash
+      },
+      userId: strategy.userId
+    });
+    
+    return this.createStrategyExecution({
+      strategyId,
+      status: "success",
+      transactionHash,
+      gasUsed,
+      gasFee,
+      opportunityId: bestOpportunity.id,
+      details: {
+        protocolId: bestOpportunity.protocolId,
+        networkId: bestOpportunity.networkId,
+        asset: bestOpportunity.asset,
+        apy: bestOpportunity.apy,
+        amount: investmentAmount
+      },
+      errorMessage: null
+    });
   }
 }
 

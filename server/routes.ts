@@ -9,7 +9,10 @@ import {
   insertOpportunitySchema,
   insertSocialPostSchema,
   insertActivitySchema,
-  insertAgentConfigurationSchema
+  insertAgentConfigurationSchema,
+  insertAgentInstanceSchema,
+  insertYieldStrategySchema,
+  insertStrategyExecutionSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -768,6 +771,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Parallel scan initiated with ${startedScans.length} agents`,
         agents: startedScans
       });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // ===== Automated Yield Farming Strategy APIs =====
+  
+  // Get all yield strategies
+  app.get("/api/yield-strategies", async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+      const strategies = await storage.getYieldStrategies(userId);
+      
+      // Enrich strategies with protocol and network information
+      const protocols = await storage.getProtocols();
+      const networks = await storage.getNetworks();
+      
+      const enrichedStrategies = strategies.map(strategy => {
+        const targetProtocolIds = strategy.targetProtocols as number[];
+        const targetNetworkIds = strategy.targetNetworks as number[];
+        
+        const protocolInfo = targetProtocolIds.map(id => {
+          const protocol = protocols.find(p => p.id === id);
+          return protocol ? { id, name: protocol.name } : { id, name: "Unknown" };
+        });
+        
+        const networkInfo = targetNetworkIds.map(id => {
+          const network = networks.find(n => n.id === id);
+          return network ? { id, name: network.name } : { id, name: "Unknown" };
+        });
+        
+        return {
+          ...strategy,
+          protocolInfo,
+          networkInfo
+        };
+      });
+      
+      res.json(enrichedStrategies);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Get a specific yield strategy
+  app.get("/api/yield-strategies/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const strategy = await storage.getYieldStrategy(id);
+      
+      if (!strategy) {
+        return res.status(404).json({ message: "Strategy not found" });
+      }
+      
+      // Get related executions
+      const executions = await storage.getStrategyExecutions(id);
+      
+      // Enrich with protocol and network information
+      const protocols = await storage.getProtocols();
+      const networks = await storage.getNetworks();
+      
+      const targetProtocolIds = strategy.targetProtocols as number[];
+      const targetNetworkIds = strategy.targetNetworks as number[];
+      
+      const protocolInfo = targetProtocolIds.map(id => {
+        const protocol = protocols.find(p => p.id === id);
+        return protocol ? { id, name: protocol.name } : { id, name: "Unknown" };
+      });
+      
+      const networkInfo = targetNetworkIds.map(id => {
+        const network = networks.find(n => n.id === id);
+        return network ? { id, name: network.name } : { id, name: "Unknown" };
+      });
+      
+      res.json({
+        ...strategy,
+        protocolInfo,
+        networkInfo,
+        executions
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Create a new yield strategy
+  app.post("/api/yield-strategies", async (req: Request, res: Response) => {
+    try {
+      const strategyData = insertYieldStrategySchema.parse(req.body);
+      const newStrategy = await storage.createYieldStrategy(strategyData);
+      
+      res.status(201).json(newStrategy);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Update a yield strategy
+  app.put("/api/yield-strategies/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const strategy = await storage.getYieldStrategy(id);
+      
+      if (!strategy) {
+        return res.status(404).json({ message: "Strategy not found" });
+      }
+      
+      const updateData = insertYieldStrategySchema.partial().parse(req.body);
+      const updatedStrategy = await storage.updateYieldStrategy(id, updateData);
+      
+      res.json(updatedStrategy);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Delete a yield strategy
+  app.delete("/api/yield-strategies/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const strategy = await storage.getYieldStrategy(id);
+      
+      if (!strategy) {
+        return res.status(404).json({ message: "Strategy not found" });
+      }
+      
+      const result = await storage.deleteYieldStrategy(id);
+      
+      if (result) {
+        res.json({ message: "Strategy deleted successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to delete strategy" });
+      }
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Execute a strategy
+  app.post("/api/yield-strategies/:id/execute", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const strategy = await storage.getYieldStrategy(id);
+      
+      if (!strategy) {
+        return res.status(404).json({ message: "Strategy not found" });
+      }
+      
+      const result = await storage.executeYieldStrategy(id);
+      
+      res.json({
+        message: "Strategy executed successfully",
+        execution: result
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Get executions for a strategy
+  app.get("/api/yield-strategies/:id/executions", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const strategy = await storage.getYieldStrategy(id);
+      
+      if (!strategy) {
+        return res.status(404).json({ message: "Strategy not found" });
+      }
+      
+      const executions = await storage.getStrategyExecutions(id);
+      
+      res.json(executions);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Get all executions
+  app.get("/api/strategy-executions", async (req: Request, res: Response) => {
+    try {
+      const executions = await storage.getStrategyExecutions();
+      res.json(executions);
     } catch (error) {
       handleError(res, error);
     }

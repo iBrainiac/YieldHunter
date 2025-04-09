@@ -183,3 +183,72 @@ export type InsertAgentConfiguration = z.infer<typeof insertAgentConfigurationSc
 
 export type AgentInstance = typeof agentInstances.$inferSelect;
 export type InsertAgentInstance = z.infer<typeof insertAgentInstanceSchema>;
+
+// Automated yield farming strategies table
+export const yieldStrategies = pgTable("yield_strategies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("active"), // active, paused, completed
+  userId: integer("user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastExecutedAt: timestamp("last_executed_at"),
+  totalExecutions: integer("total_executions").default(0),
+  conditions: jsonb("conditions").notNull(), // JSON with strategy conditions
+  actions: jsonb("actions").notNull(), // JSON with actions to execute when conditions are met
+  executionResults: jsonb("execution_results"), // History of execution results
+  maxGasFee: real("max_gas_fee"), // Maximum gas fee willing to pay for transactions
+  triggerType: text("trigger_type").notNull(), // time-based, price-based, apy-based
+  nextScheduledExecution: timestamp("next_scheduled_execution"),
+  targetProtocols: jsonb("target_protocols").notNull(), // Array of protocol IDs
+  targetNetworks: jsonb("target_networks").notNull(), // Array of network IDs
+  totalInvested: real("total_invested").default(0),
+  totalReturn: real("total_return").default(0),
+  settings: jsonb("settings"), // Additional strategy settings
+});
+
+export const insertYieldStrategySchema = createInsertSchema(yieldStrategies).pick({
+  name: true,
+  description: true,
+  status: true,
+  userId: true,
+  conditions: true,
+  actions: true, 
+  maxGasFee: true,
+  triggerType: true,
+  nextScheduledExecution: true,
+  targetProtocols: true,
+  targetNetworks: true,
+  settings: true,
+});
+
+// Strategy executions table to track individual operations
+export const strategyExecutions = pgTable("strategy_executions", {
+  id: serial("id").primaryKey(), 
+  strategyId: integer("strategy_id").notNull(),
+  status: text("status").notNull(), // success, failed, pending
+  executedAt: timestamp("executed_at").defaultNow(),
+  transactionHash: text("transaction_hash"),
+  gasUsed: real("gas_used"),
+  gasFee: real("gas_fee"),
+  opportunityId: integer("opportunity_id"),
+  details: jsonb("details"), // Details of the execution
+  errorMessage: text("error_message"),
+});
+
+export const insertStrategyExecutionSchema = createInsertSchema(strategyExecutions).pick({
+  strategyId: true,
+  status: true,
+  transactionHash: true,
+  gasUsed: true,
+  gasFee: true,
+  opportunityId: true,
+  details: true,
+  errorMessage: true,
+});
+
+export type YieldStrategy = typeof yieldStrategies.$inferSelect;
+export type InsertYieldStrategy = z.infer<typeof insertYieldStrategySchema>;
+
+export type StrategyExecution = typeof strategyExecutions.$inferSelect;
+export type InsertStrategyExecution = z.infer<typeof insertStrategyExecutionSchema>;
