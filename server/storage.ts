@@ -1,12 +1,13 @@
 import { 
-  users, protocols, networks, opportunities, socialPosts, activities, agentConfigurations,
+  users, protocols, networks, opportunities, socialPosts, activities, agentConfigurations, agentInstances,
   type User, type InsertUser, 
   type Protocol, type InsertProtocol,
   type Network, type InsertNetwork,
   type Opportunity, type InsertOpportunity,
   type SocialPost, type InsertSocialPost,
   type Activity, type InsertActivity,
-  type AgentConfiguration, type InsertAgentConfiguration
+  type AgentConfiguration, type InsertAgentConfiguration,
+  type AgentInstance, type InsertAgentInstance
 } from "@shared/schema";
 
 // Storage interface with CRUD methods
@@ -46,6 +47,14 @@ export interface IStorage {
   getAgentConfiguration(id: number): Promise<AgentConfiguration | undefined>;
   createAgentConfiguration(config: InsertAgentConfiguration): Promise<AgentConfiguration>;
   updateAgentConfiguration(id: number, config: Partial<InsertAgentConfiguration>): Promise<AgentConfiguration | undefined>;
+  
+  // Agent instance methods (for multi-agent architecture)
+  getAgentInstances(): Promise<AgentInstance[]>;
+  getAgentInstance(id: number): Promise<AgentInstance | undefined>;
+  getAgentInstancesByConfig(configId: number): Promise<AgentInstance[]>;
+  createAgentInstance(instance: InsertAgentInstance): Promise<AgentInstance>;
+  updateAgentInstance(id: number, data: Partial<InsertAgentInstance>): Promise<AgentInstance | undefined>;
+  deleteAgentInstance(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -56,6 +65,7 @@ export class MemStorage implements IStorage {
   private socialPosts: Map<number, SocialPost>;
   private activities: Map<number, Activity>;
   private agentConfigurations: Map<number, AgentConfiguration>;
+  private agentInstances: Map<number, AgentInstance>;
   
   private userId: number;
   private protocolId: number;
@@ -64,6 +74,7 @@ export class MemStorage implements IStorage {
   private postId: number;
   private activityId: number;
   private configId: number;
+  private instanceId: number;
 
   constructor() {
     this.users = new Map();
@@ -73,6 +84,7 @@ export class MemStorage implements IStorage {
     this.socialPosts = new Map();
     this.activities = new Map();
     this.agentConfigurations = new Map();
+    this.agentInstances = new Map();
     
     this.userId = 1;
     this.protocolId = 1;
@@ -81,12 +93,15 @@ export class MemStorage implements IStorage {
     this.postId = 1;
     this.activityId = 1;
     this.configId = 1;
+    this.instanceId = 1;
     
-    // Initialize with sample data for demo
-    this.initializeData();
+    // Initialize with sample data for demo (using IIFE to handle async)
+    (async () => {
+      await this.initializeData();
+    })();
   }
 
-  private initializeData() {
+  private async initializeData() {
     // Initialize networks
     const networks = [
       { name: "Ethereum", shortName: "ETH", logo: "E", isActive: true },
@@ -97,7 +112,9 @@ export class MemStorage implements IStorage {
       { name: "Solana", shortName: "SOL", logo: "S", isActive: true }
     ];
     
-    networks.forEach(network => this.createNetwork(network));
+    for (const network of networks) {
+      await this.createNetwork(network);
+    }
     
     // Initialize protocols
     const protocols = [
@@ -109,7 +126,9 @@ export class MemStorage implements IStorage {
       { name: "Convex Finance", logo: "CVX", website: "https://convexfinance.com", description: "Curve yield booster", riskLevel: "medium" }
     ];
     
-    protocols.forEach(protocol => this.createProtocol(protocol));
+    for (const protocol of protocols) {
+      await this.createProtocol(protocol);
+    }
     
     // Initialize opportunities
     const opportunities = [
@@ -121,7 +140,9 @@ export class MemStorage implements IStorage {
       { protocolId: 6, networkId: 1, asset: "cvxCRV", apy: 15.6, tvl: 730000000, riskLevel: "medium", details: "Staking on Convex", url: "https://convexfinance.com" }
     ];
     
-    opportunities.forEach(opportunity => this.createOpportunity(opportunity));
+    for (const opportunity of opportunities) {
+      await this.createOpportunity(opportunity);
+    }
     
     // Initialize activities
     const activities = [
@@ -130,15 +151,50 @@ export class MemStorage implements IStorage {
       { type: "transaction", description: "Successfully executed stake on Compound", details: { protocolId: 2, amount: "0.5 ETH" }, userId: null }
     ];
     
-    activities.forEach(activity => this.createActivity(activity));
+    for (const activity of activities) {
+      await this.createActivity(activity);
+    }
     
-    // Initialize agent configuration
-    this.createAgentConfiguration({
+    // Initialize agent configuration with parallel scanning
+    const config = await this.createAgentConfiguration({
       scanFrequency: "hourly",
       riskTolerance: "low",
       networks: ["ethereum", "polygon", "bsc"],
       postingMode: "approval",
+      parallelScanning: true,
+      maxAgents: 3,
       userId: null
+    });
+    
+    // Create initial agent instances for the multi-agent architecture
+    await this.createAgentInstance({
+      name: "Yield Scanner Alpha",
+      status: "idle",
+      assignedProtocol: 1, // Aave v3
+      assignedNetwork: 2, // Polygon
+      currentTask: "Monitoring stablecoin pools",
+      performance: { successRate: 98, lastFound: "2023-04-08T14:22:11Z", opportunitiesFound: 12 },
+      configurationId: config.id
+    });
+    
+    await this.createAgentInstance({
+      name: "Yield Scanner Beta",
+      status: "scanning",
+      assignedProtocol: 3, // PancakeSwap
+      assignedNetwork: 3, // BSC
+      currentTask: "Scanning liquidity pools",
+      performance: { successRate: 95, lastFound: "2023-04-08T20:15:46Z", opportunitiesFound: 9 },
+      configurationId: config.id
+    });
+    
+    await this.createAgentInstance({
+      name: "Yield Scanner Gamma",
+      status: "idle",
+      assignedProtocol: 6, // Convex Finance
+      assignedNetwork: 1, // Ethereum
+      currentTask: "Waiting for next scan",
+      performance: { successRate: 97, lastFound: "2023-04-08T12:03:22Z", opportunitiesFound: 7 },
+      configurationId: config.id
     });
   }
 
@@ -279,6 +335,77 @@ export class MemStorage implements IStorage {
     const updatedConfig: AgentConfiguration = { ...existingConfig, ...config };
     this.agentConfigurations.set(id, updatedConfig);
     return updatedConfig;
+  }
+  
+  // Agent instance methods
+  async getAgentInstances(): Promise<AgentInstance[]> {
+    return Array.from(this.agentInstances.values());
+  }
+  
+  async getAgentInstance(id: number): Promise<AgentInstance | undefined> {
+    return this.agentInstances.get(id);
+  }
+  
+  async getAgentInstancesByConfig(configId: number): Promise<AgentInstance[]> {
+    return Array.from(this.agentInstances.values()).filter(
+      instance => instance.configurationId === configId
+    );
+  }
+  
+  async createAgentInstance(instance: InsertAgentInstance): Promise<AgentInstance> {
+    const id = this.instanceId++;
+    const createdAt = new Date();
+    const newInstance: AgentInstance = { 
+      ...instance, 
+      id, 
+      createdAt,
+      status: instance.status || "idle",
+      lastScanTime: null 
+    };
+    
+    this.agentInstances.set(id, newInstance);
+    
+    // Log agent creation
+    this.createActivity({
+      type: "agent",
+      description: `Created new agent instance: ${instance.name}`,
+      details: { agentId: id, protocol: instance.assignedProtocol },
+      userId: null
+    });
+    
+    return newInstance;
+  }
+  
+  async updateAgentInstance(id: number, data: Partial<InsertAgentInstance>): Promise<AgentInstance | undefined> {
+    const existingInstance = this.agentInstances.get(id);
+    if (!existingInstance) return undefined;
+    
+    const updatedInstance: AgentInstance = { ...existingInstance, ...data };
+    
+    // If status changed to "scanning", update lastScanTime
+    if (data.status === "scanning" && existingInstance.status !== "scanning") {
+      updatedInstance.lastScanTime = new Date();
+    }
+    
+    this.agentInstances.set(id, updatedInstance);
+    return updatedInstance;
+  }
+  
+  async deleteAgentInstance(id: number): Promise<boolean> {
+    const instance = this.agentInstances.get(id);
+    if (!instance) return false;
+    
+    this.agentInstances.delete(id);
+    
+    // Log agent deletion
+    this.createActivity({
+      type: "agent",
+      description: `Deleted agent instance: ${instance.name}`,
+      details: { agentId: id },
+      userId: null
+    });
+    
+    return true;
   }
 }
 

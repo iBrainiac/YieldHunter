@@ -9,7 +9,8 @@ import {
   MessageSquareText, 
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Cpu
 } from "lucide-react";
 
 interface NavItem {
@@ -38,6 +39,11 @@ const navItems: NavItem[] = [
     title: "Social Posts",
     href: "/social-posts",
     icon: <MessageSquareText className="h-5 w-5 mr-3" />,
+  },
+  {
+    title: "AI Agents",
+    href: "/agents",
+    icon: <Cpu className="h-5 w-5 mr-3" />,
   },
   {
     title: "Settings",

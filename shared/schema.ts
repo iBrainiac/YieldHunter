@@ -120,6 +120,8 @@ export const agentConfigurations = pgTable("agent_configurations", {
   riskTolerance: text("risk_tolerance").notNull().default("low"),
   networks: jsonb("networks").notNull(),
   postingMode: text("posting_mode").notNull().default("approval"),
+  parallelScanning: boolean("parallel_scanning").notNull().default(false),
+  maxAgents: integer("max_agents").notNull().default(3),
   userId: integer("user_id"),
 });
 
@@ -128,7 +130,33 @@ export const insertAgentConfigurationSchema = createInsertSchema(agentConfigurat
   riskTolerance: true,
   networks: true,
   postingMode: true,
+  parallelScanning: true,
+  maxAgents: true,
   userId: true,
+});
+
+// Agent instances table for multi-agent architecture
+export const agentInstances = pgTable("agent_instances", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("idle"), // idle, scanning, paused, error
+  assignedProtocol: integer("assigned_protocol"),
+  assignedNetwork: integer("assigned_network"),
+  lastScanTime: timestamp("last_scan_time"),
+  currentTask: text("current_task"),
+  performance: jsonb("performance"), // metrics about this agent's performance
+  createdAt: timestamp("created_at").defaultNow(),
+  configurationId: integer("configuration_id").notNull(),
+});
+
+export const insertAgentInstanceSchema = createInsertSchema(agentInstances).pick({
+  name: true,
+  status: true,
+  assignedProtocol: true,
+  assignedNetwork: true,
+  currentTask: true,
+  performance: true,
+  configurationId: true,
 });
 
 // Type exports
@@ -152,3 +180,6 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type AgentConfiguration = typeof agentConfigurations.$inferSelect;
 export type InsertAgentConfiguration = z.infer<typeof insertAgentConfigurationSchema>;
+
+export type AgentInstance = typeof agentInstances.$inferSelect;
+export type InsertAgentInstance = z.infer<typeof insertAgentInstanceSchema>;

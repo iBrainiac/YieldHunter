@@ -25,6 +25,31 @@ interface AgentConfigParams {
   postingMode?: string;
 }
 
+// Add protocols and networks API functions
+export const protocolsApi = {
+  getAll: async () => {
+    const response = await apiRequest("GET", "/api/protocols");
+    return response.json();
+  },
+  
+  get: async (id: number) => {
+    const response = await apiRequest("GET", `/api/protocols/${id}`);
+    return response.json();
+  }
+};
+
+export const networksApi = {
+  getAll: async () => {
+    const response = await apiRequest("GET", "/api/networks");
+    return response.json();
+  },
+  
+  get: async (id: number) => {
+    const response = await apiRequest("GET", `/api/networks/${id}`);
+    return response.json();
+  }
+};
+
 // API functions to interact with the backend
 export const api = {
   // Wallet functions
@@ -130,10 +155,58 @@ export const api = {
     }
   },
   
-  // Agent configuration
+  // Agent configuration and instances
   agent: {
+    // Configuration methods
+    getConfig: async () => {
+      const response = await apiRequest("GET", "/api/agent-configuration");
+      return response.json();
+    },
+    
     updateConfig: async (params: AgentConfigParams) => {
       const response = await apiRequest("PUT", "/api/agent-configuration", params);
+      return response.json();
+    },
+    
+    // Multi-agent instance methods
+    getInstances: async () => {
+      const response = await apiRequest("GET", "/api/agent-instances");
+      return response.json();
+    },
+    
+    getInstance: async (id: number) => {
+      const response = await apiRequest("GET", `/api/agent-instances/${id}`);
+      return response.json();
+    },
+    
+    createInstance: async (data: {
+      name: string;
+      assignedProtocol?: number;
+      assignedNetwork?: number;
+      configurationId: number;
+    }) => {
+      const response = await apiRequest("POST", "/api/agent-instances", data);
+      return response.json();
+    },
+    
+    updateInstance: async (id: number, data: {
+      name?: string;
+      status?: string;
+      assignedProtocol?: number;
+      assignedNetwork?: number;
+      currentTask?: string;
+    }) => {
+      const response = await apiRequest("PUT", `/api/agent-instances/${id}`, data);
+      return response.json();
+    },
+    
+    deleteInstance: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/agent-instances/${id}`);
+      return response.json();
+    },
+    
+    startScan: async (id: number) => {
+      const response = await apiRequest("POST", `/api/agent-instances/${id}/scan`);
       return response.json();
     }
   }

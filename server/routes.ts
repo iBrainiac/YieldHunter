@@ -411,6 +411,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleError(res, error);
     }
   });
+  
+  // ===== Agent instances APIs for multi-agent architecture =====
+  
+  // Get all agent instances
+  app.get("/api/agent-instances", async (req: Request, res: Response) => {
+    try {
+      const instances = await storage.getAgentInstances();
+      
+      // For each instance, fetch the assigned protocol and network details
+      const enrichedInstances = await Promise.all(instances.map(async (instance) => {
+        let protocol = null;
+        let network = null;
+        
+        if (instance.assignedProtocol) {
+          protocol = await storage.getProtocol(instance.assignedProtocol);
+        }
+        
+        if (instance.assignedNetwork) {
+          network = await storage.getNetwork(instance.assignedNetwork);
+        }
+        
+        return {
+          ...instance,
+          protocol: protocol ? { id: protocol.id, name: protocol.name } : null,
+          network: network ? { id: network.id, name: network.name } : null
+        };
+      }));
+      
+      res.json(enrichedInstances);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Get a specific agent instance
+  app.get("/api/agent-instances/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const instance = await storage.getAgentInstance(id);
+      
+      if (!instance) {
+        return res.status(404).json({ message: "Agent instance not found" });
+      }
+      
+      // Fetch protocol and network details
+      let protocol = null;
+      let network = null;
+      
+      if (instance.assignedProtocol) {
+        protocol = await storage.getProtocol(instance.assignedProtocol);
+      }
+      
+      if (instance.assignedNetwork) {
+        network = await storage.getNetwork(instance.assignedNetwork);
+      }
+      
+      res.json({
+        ...instance,
+        protocol: protocol ? { id: protocol.id, name: protocol.name } : null,
+        network: network ? { id: network.id, name: network.name } : null
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Create a new agent instance
+  app.post("/api/agent-instances", async (req: Request, res: Response) => {
+    try {
+      const { name, assignedProtocol, assignedNetwork, configurationId } = req.body;
+      
+      if (!name || !configurationId) {
+        return res.status(400).json({ message: "Name and configurationId are required" });
+      }
+      
+      // Check if configuration exists
+      const config = await storage.getAgentConfiguration(configurationId);
+      if (!config) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+      
+      // Get existing agents for this configuration
+      const existingAgents = await storage.getAgentInstancesByConfig(configurationId);
+      
+      // Check if max agents limit would be exceeded
+      if (existingAgents.length >= config.maxAgents) {
+        return res.status(400).json({ 
+          message: `Maximum number of agents (${config.maxAgents}) for this configuration would be exceeded`
+        });
+      }
+      
+      // Create the new agent instance
+      const newInstance = await storage.createAgentInstance({
+        name,
+        status: "idle",
+        assignedProtocol,
+        assignedNetwork,
+        currentTask: "Waiting for initialization",
+        performance: { successRate: 0, opportunitiesFound: 0 },
+        configurationId
+      });
+      
+      res.status(201).json(newInstance);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Update an agent instance
+  app.put("/api/agent-instances/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const instance = await storage.getAgentInstance(id);
+      
+      if (!instance) {
+        return res.status(404).json({ message: "Agent instance not found" });
+      }
+      
+      const updatedInstance = await storage.updateAgentInstance(id, req.body);
+      res.json(updatedInstance);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Delete an agent instance
+  app.delete("/api/agent-instances/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAgentInstance(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Agent instance not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Start an agent scanning task
+  app.post("/api/agent-instances/:id/scan", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const instance = await storage.getAgentInstance(id);
+      
+      if (!instance) {
+        return res.status(404).json({ message: "Agent instance not found" });
+      }
+      
+      // Update agent status to scanning
+      const updatedInstance = await storage.updateAgentInstance(id, {
+        status: "scanning",
+        currentTask: "Scanning for yield opportunities"
+      });
+      
+      // In a real implementation, we would launch the scanning process here
+      // For now, we'll simulate it by creating a finding after a delay
+      setTimeout(async () => {
+        try {
+          // Simulate opportunity finding
+          const scanResult = Math.random() > 0.3; // 70% chance of finding something
+          
+          if (scanResult && instance.assignedProtocol) {
+            // Generate a random opportunity
+            const protocol = await storage.getProtocol(instance.assignedProtocol);
+            const network = instance.assignedNetwork ? await storage.getNetwork(instance.assignedNetwork) : null;
+            
+            if (protocol && network) {
+              // Create a new opportunity
+              const baseApy = 5 + (Math.random() * 20); // Between 5% and 25%
+              const opportunity = await storage.createOpportunity({
+                protocolId: protocol.id,
+                networkId: network.id,
+                asset: ["USDC", "ETH", "DAI", "WBTC"][Math.floor(Math.random() * 4)],
+                apy: baseApy,
+                tvl: 50000000 + (Math.random() * 500000000),
+                riskLevel: baseApy > 15 ? "high" : baseApy > 10 ? "medium" : "low",
+                details: `${protocol.name} yield opportunity found by agent ${instance.name}`,
+                url: protocol.website || ""
+              });
+              
+              // Update agent with success
+              await storage.updateAgentInstance(id, {
+                status: "idle",
+                currentTask: "Waiting for next scan",
+                performance: {
+                  successRate: Math.min(100, ((instance.performance as any)?.successRate || 90) + 1),
+                  opportunitiesFound: ((instance.performance as any)?.opportunitiesFound || 0) + 1,
+                  lastFound: new Date().toISOString()
+                }
+              });
+              
+              // Create activity log
+              await storage.createActivity({
+                type: "opportunity",
+                description: `Agent ${instance.name} found new yield opportunity on ${protocol.name}`,
+                details: { opportunityId: opportunity.id, agentId: instance.id },
+                userId: null
+              });
+            }
+          } else {
+            // No opportunity found, update agent
+            await storage.updateAgentInstance(id, {
+              status: "idle",
+              currentTask: "Waiting for next scan",
+              performance: {
+                successRate: Math.max(80, (((instance.performance as any)?.successRate || 90) - 0.5)),
+                opportunitiesFound: ((instance.performance as any)?.opportunitiesFound || 0)
+              }
+            });
+          }
+        } catch (e) {
+          console.error("Error in background scan task:", e);
+          // Update agent with error status
+          await storage.updateAgentInstance(id, {
+            status: "error",
+            currentTask: "Scan failed - see logs"
+          });
+        }
+      }, 5000); // Simulate scanning for 5 seconds
+      
+      res.json({
+        message: "Scan initiated",
+        instance: updatedInstance
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -10,6 +10,7 @@ import Opportunities from "@/pages/opportunities";
 import Portfolio from "@/pages/portfolio";
 import SocialPosts from "@/pages/social-posts";
 import Settings from "@/pages/settings";
+import Agents from "@/pages/agents";
 import Sidebar from "@/components/layout/sidebar";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
           <Route path="/opportunities" component={Opportunities} />
           <Route path="/portfolio" component={Portfolio} />
           <Route path="/social-posts" component={SocialPosts} />
+          <Route path="/agents" component={Agents} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
