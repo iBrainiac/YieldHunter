@@ -173,6 +173,82 @@ export class EthereumService {
     }
   }
   
+  // Withdraw funds from a protocol
+  async withdrawFromProtocol(
+    protocolName: string, 
+    amount: string
+  ): Promise<{ success: boolean; transactionHash: string }> {
+    if (!this.provider || !this.signer) {
+      throw new Error("Wallet not connected");
+    }
+    
+    try {
+      // In the Replit environment, we'll simulate blockchain transactions
+      console.log(`Simulating withdrawal of ${amount} ETH from ${protocolName}`);
+      
+      // Generate a mock transaction hash
+      const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`;
+      
+      // Simulate network latency
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      return {
+        success: true,
+        transactionHash: mockTxHash
+      };
+      
+      // When using in real environment, uncomment this:
+      // return await protocolService.withdraw(protocolName, amount);
+    } catch (error) {
+      console.error("Error withdrawing from protocol:", error);
+      throw error;
+    }
+  }
+  
+  // Get wallet balance with additional token information
+  async getWalletBalance(): Promise<{ 
+    native: string; 
+    tokens: Array<{ symbol: string; balance: string; }>;
+    totalValue: string;
+  }> {
+    if (!this.provider || !this.signer) {
+      throw new Error("Wallet not connected");
+    }
+    
+    try {
+      const address = await this.signer.getAddress();
+      const nativeBalance = await this.provider.getBalance(address);
+      const formattedNativeBalance = ethers.formatEther(nativeBalance);
+      
+      // Simulate getting token balances from protocols
+      // In a real implementation, this would query each protocol contract for balances
+      // For simulation purposes, we'll create some mock data
+      const mockTokens = [
+        { symbol: "aUSDC", balance: "245.50" },
+        { symbol: "cETH", balance: "0.35" },
+        { symbol: "USDT-LP", balance: "125.00" }
+      ];
+      
+      // Calculate a mock total value
+      const ethPrice = 3000; // Mock ETH price in USD
+      const nativeValueInUsd = parseFloat(formattedNativeBalance) * ethPrice;
+      const tokenValueInUsd = mockTokens.reduce((sum, token) => {
+        return sum + parseFloat(token.balance);
+      }, 0);
+      
+      const totalValueInUsd = nativeValueInUsd + tokenValueInUsd;
+      
+      return {
+        native: `${parseFloat(formattedNativeBalance).toFixed(4)} ETH`,
+        tokens: mockTokens,
+        totalValue: `$${totalValueInUsd.toFixed(2)}`
+      };
+    } catch (error) {
+      console.error("Error getting wallet balance:", error);
+      throw error;
+    }
+  }
+  
   // Helper method to get actual protocol address
   getProtocolAddress(protocolName: string): string {
     return getProtocolAddress(protocolName);

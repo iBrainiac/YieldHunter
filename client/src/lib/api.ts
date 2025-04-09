@@ -151,6 +151,50 @@ export const api = {
       }
     },
     
+    // Withdraw funds from a protocol
+    withdraw: async ({ opportunityId, amount }: TransactionParams) => {
+      try {
+        // Get opportunity details from backend
+        const res = await apiRequest("GET", `/api/opportunities/${opportunityId}`);
+        const opportunity = await res.json();
+        
+        if (!opportunity) {
+          throw new Error("Opportunity not found");
+        }
+        
+        // Get protocol name for the withdrawal
+        const protocolRes = await apiRequest("GET", `/api/protocols/${opportunity.protocolId}`);
+        const protocol = await protocolRes.json();
+        
+        if (!protocol) {
+          throw new Error("Protocol not found");
+        }
+        
+        console.log(`Executing withdrawal of ${amount} from ${protocol.name} on ${opportunity.asset}`);
+        
+        // Execute the withdrawal transaction through the blockchain
+        const result = await ethereumService.withdrawFromProtocol(
+          protocol.name,
+          amount
+        );
+        
+        console.log(`Withdrawal successful: ${result.transactionHash}`);
+        
+        // Log the transaction in our system
+        await apiRequest("POST", "/api/transaction", {
+          opportunityId,
+          amount,
+          type: "withdrawal",
+          transactionHash: result.transactionHash
+        });
+        
+        return result;
+      } catch (error) {
+        console.error("Withdrawal error:", error);
+        throw error;
+      }
+    },
+    
     // Get transaction history
     getHistory: async () => {
       const response = await apiRequest("GET", "/api/transactions");
@@ -161,6 +205,17 @@ export const api = {
     getOpportunities: async () => {
       const response = await apiRequest("GET", "/api/opportunities");
       return response.json();
+    },
+    
+    // Get wallet balance
+    getWalletBalance: async () => {
+      try {
+        const balance = await ethereumService.getWalletBalance();
+        return balance;
+      } catch (error) {
+        console.error("Error fetching wallet balance:", error);
+        throw error;
+      }
     }
   },
   

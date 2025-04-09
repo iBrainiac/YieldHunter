@@ -118,6 +118,50 @@ export default function ChatInterface() {
         isAction: true,
         actionStatus: 'error'
       });
+    }
+  });
+  
+  // Withdraw mutation for handling withdrawals
+  const withdrawMutation = useMutation({
+    mutationFn: (params: { opportunityId: number, amount: string }) => 
+      api.transaction.withdraw(params),
+    onSuccess: (result, variables) => {
+      // Find the relevant opportunity
+      const opportunity = opportunities.find(o => o.id === variables.opportunityId);
+      const protocol = protocols.find(p => p.id === opportunity?.protocolId);
+      
+      // Create a success message
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Successfully withdrew ${variables.amount} ${opportunity?.asset || 'tokens'} from ${protocol?.name || 'protocol'}.`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'success',
+        actionDetails: {
+          transactionHash: result.transactionHash,
+          amount: variables.amount,
+          opportunityId: variables.opportunityId
+        }
+      });
+      
+      toast({
+        title: "Withdrawal successful",
+        description: `Withdrew ${variables.amount} ${opportunity?.asset || 'tokens'} from ${protocol?.name || 'protocol'}.`
+      });
+      
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+    },
+    onError: (error: any, variables) => {
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Error: ${error.message || 'Failed to execute withdrawal. Please try again.'}`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'error'
+      });
       
       toast({
         title: "Transaction failed",
@@ -171,7 +215,8 @@ export default function ChatInterface() {
     
     // Check if wallet is connected
     if (!walletState?.connected) {
-      if (lowerMsg.includes('deposit') || lowerMsg.includes('send') || lowerMsg.includes('invest')) {
+      if (lowerMsg.includes('deposit') || lowerMsg.includes('send') || lowerMsg.includes('invest') || 
+          lowerMsg.includes('withdraw') || lowerMsg.includes('balance') || lowerMsg.includes('portfolio')) {
         addMessage({
           id: Date.now().toString(),
           sender: 'bot',
@@ -195,7 +240,7 @@ export default function ChatInterface() {
       addMessage({
         id: Date.now().toString(),
         sender: 'bot',
-        content: 'I can help you with:\n- Depositing funds to yield protocols\n- Setting up auto-investments based on your risk preferences\n- Showing current top opportunities\n- Managing your yield portfolio\n\nJust tell me what you need!',
+        content: 'I can help you with:\n- Depositing funds to yield protocols\n- Withdrawing funds from protocols\n- Checking your wallet balance\n- Setting up auto-investments based on your risk preferences\n- Showing current top opportunities\n- Finding protocols across all agents\n- Managing your yield portfolio\n\nJust tell me what you need!',
         timestamp: new Date()
       });
     }
@@ -204,6 +249,12 @@ export default function ChatInterface() {
     }
     else if ((lowerMsg.includes('deposit') || lowerMsg.includes('invest') || lowerMsg.includes('send')) && walletState?.connected) {
       handleDepositIntent(message);
+    }
+    else if ((lowerMsg.includes('withdraw') || lowerMsg.includes('take out') || lowerMsg.includes('remove')) && walletState?.connected) {
+      handleWithdrawIntent(message);
+    }
+    else if ((lowerMsg.includes('balance') || lowerMsg.includes('portfolio') || lowerMsg.includes('holding') || lowerMsg.includes('asset')) && walletState?.connected) {
+      checkWalletBalance();
     }
     else if (lowerMsg.includes('auto') || lowerMsg.includes('automatic')) {
       if (lowerMsg.includes('enable') || lowerMsg.includes('turn on') || lowerMsg.includes('activate')) {
@@ -233,6 +284,9 @@ export default function ChatInterface() {
     }
     else if (lowerMsg.includes('show opportunities') || lowerMsg.includes('best opportunities') || lowerMsg.includes('top opportunities')) {
       showTopOpportunities();
+    }
+    else if (lowerMsg.includes('find protocols') || lowerMsg.includes('scan protocols') || lowerMsg.includes('list protocols') || lowerMsg.includes('all protocols')) {
+      findProtocolsAcrossAgents();
     }
     else {
       addMessage({
@@ -387,6 +441,197 @@ export default function ChatInterface() {
       content: `Here are the top opportunities right now:\n\n${formattedList}\n\nWould you like to deposit to any of these?`,
       timestamp: new Date()
     });
+  };
+  
+  const findProtocolsAcrossAgents = async () => {
+    addMessage({
+      id: Date.now().toString(),
+      sender: 'bot',
+      content: 'Scanning for protocols across all agent instances...',
+      timestamp: new Date(),
+      isAction: true,
+      actionStatus: 'pending'
+    });
+    
+    try {
+      // Get all agent instances
+      const instances = await api.agent.getInstances();
+      
+      if (!instances || instances.length === 0) {
+        addMessage({
+          id: Date.now().toString(),
+          sender: 'bot',
+          content: 'There are no active agent instances to scan. Would you like to create one?',
+          timestamp: new Date(),
+          isAction: true,
+          actionStatus: 'error'
+        });
+        return;
+      }
+      
+      // Get all protocols
+      const discoveredProtocols = protocols.map(p => {
+        const agent = instances.find(i => i.assignedProtocol === p.id);
+        return {
+          ...p,
+          scannedBy: agent ? agent.name : 'No specific agent'
+        };
+      });
+      
+      // Format protocol list
+      const formattedList = discoveredProtocols.map(p => {
+        return `- ${p.name} (Risk: ${p.riskLevel.charAt(0).toUpperCase() + p.riskLevel.slice(1)}) - Monitored by: ${p.scannedBy}`;
+      }).join('\n');
+      
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Found ${discoveredProtocols.length} protocols across ${instances.length} agent instances:\n\n${formattedList}\n\nWould you like to view opportunities in any of these protocols?`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'success'
+      });
+    } catch (error: any) {
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Error scanning protocols: ${error.message || 'Unknown error'}`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'error'
+      });
+    }
+  };
+  
+  const handleWithdrawIntent = (message: string) => {
+    // Simple parsing of withdrawal intent
+    const amountMatch = message.match(/\b(\d+(\.\d+)?)\s*(eth|usdc|usdt|dai|wbtc)\b/i);
+    const protocolMatch = message.match(/\b(aave|compound|curve|yearn|sushiswap|uniswap)\b/i);
+    
+    if (amountMatch && protocolMatch) {
+      const amount = amountMatch[1];
+      const asset = amountMatch[3].toUpperCase();
+      const protocolName = protocolMatch[1].charAt(0).toUpperCase() + protocolMatch[1].slice(1);
+      
+      // Find protocol and relevant opportunity
+      const protocol = protocols.find(p => p.name.toLowerCase() === protocolName.toLowerCase());
+      
+      if (!protocol) {
+        addMessage({
+          id: Date.now().toString(),
+          sender: 'bot',
+          content: `I couldn't find a protocol named ${protocolName}. Please try again with a different protocol.`,
+          timestamp: new Date()
+        });
+        return;
+      }
+      
+      const opportunity = opportunities.find(o => 
+        o.protocolId === protocol.id && 
+        o.asset.toLowerCase() === asset.toLowerCase()
+      );
+      
+      if (!opportunity) {
+        addMessage({
+          id: Date.now().toString(),
+          sender: 'bot',
+          content: `I couldn't find a ${asset} position on ${protocolName}. Do you have funds deposited there?`,
+          timestamp: new Date()
+        });
+        return;
+      }
+      
+      // Confirm withdrawal
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `I'll withdraw ${amount} ${asset} from ${protocolName}. Please confirm this transaction.`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'pending',
+        actionDetails: {
+          opportunityId: opportunity.id,
+          amount: amount,
+          asset: asset,
+          protocol: protocolName
+        }
+      });
+      
+      // Execute withdrawal transaction
+      withdrawMutation.mutate({
+        opportunityId: opportunity.id,
+        amount: amount
+      });
+      
+    } else {
+      // Couldn't parse specific withdrawal intent
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `I wasn't able to determine what you want to withdraw. Please specify the amount, asset, and protocol. For example, "withdraw 0.5 ETH from Aave".`,
+        timestamp: new Date()
+      });
+    }
+  };
+  
+  const checkWalletBalance = async () => {
+    if (!walletState?.connected) {
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `You need to connect your wallet first. Would you like to connect now?`,
+        timestamp: new Date()
+      });
+      return;
+    }
+    
+    addMessage({
+      id: Date.now().toString(),
+      sender: 'bot',
+      content: `Checking your wallet balance...`,
+      timestamp: new Date(),
+      isAction: true,
+      actionStatus: 'pending'
+    });
+    
+    try {
+      const balanceInfo = await api.transaction.getWalletBalance();
+      
+      // Format the balance information
+      const tokenList = balanceInfo.tokens.map(token => 
+        `- ${token.symbol}: ${token.balance}`
+      ).join('\n');
+      
+      const formattedMessage = `
+Wallet Balance:
+- Native: ${balanceInfo.native}
+${tokenList.length > 0 ? '\nToken Balances:\n' + tokenList : ''}
+
+Total Value: ${balanceInfo.totalValue}
+
+Would you like to deposit or withdraw any assets?`;
+      
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: formattedMessage,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'success',
+        actionDetails: {
+          balanceInfo
+        }
+      });
+    } catch (error: any) {
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Failed to retrieve wallet balance: ${error.message || 'Unknown error'}`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'error'
+      });
+    }
   };
 
   const executeAutomaticDeposit = () => {
