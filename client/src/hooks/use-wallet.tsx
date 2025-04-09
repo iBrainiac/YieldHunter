@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,20 @@ interface WalletContextType {
   disconnect: () => Promise<void>;
 }
 
-const WalletContext = createContext<WalletContextType | null>(null);
+// Create default context values to avoid null checks
+const defaultContextValue: WalletContextType = {
+  walletState: null,
+  isConnecting: false,
+  isDisconnecting: false,
+  connect: async () => {
+    throw new Error("WalletProvider not initialized");
+  },
+  disconnect: async () => {
+    throw new Error("WalletProvider not initialized");
+  }
+};
+
+const WalletContext = createContext<WalletContextType>(defaultContextValue);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [walletState, setWalletState] = useState<WalletState | null>(null);
@@ -74,16 +87,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await disconnectMutation.mutateAsync();
   };
 
+  const contextValue = {
+    walletState,
+    isConnecting: connectMutation.isPending,
+    isDisconnecting: disconnectMutation.isPending,
+    connect,
+    disconnect,
+  };
+
   return (
-    <WalletContext.Provider
-      value={{
-        walletState,
-        isConnecting: connectMutation.isPending,
-        isDisconnecting: disconnectMutation.isPending,
-        connect,
-        disconnect,
-      }}
-    >
+    <WalletContext.Provider value={contextValue}>
       {children}
     </WalletContext.Provider>
   );
@@ -91,8 +104,5 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
 export function useWallet() {
   const context = useContext(WalletContext);
-  if (!context) {
-    throw new Error("useWallet must be used within a WalletProvider");
-  }
   return context;
 }
