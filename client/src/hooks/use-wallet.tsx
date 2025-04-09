@@ -169,6 +169,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connect = async (walletType: WalletType = 'metamask') => {
     setIsSwitchingNetwork(true);
     try {
+      // If wallet is already connected, disconnect first
+      if (walletState?.connected) {
+        await disconnect();
+      }
+      
       // Connect using the specified connector
       let result;
       
@@ -229,12 +234,43 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       } else {
         // Default to MetaMask/Injected
-        const apiResult = await api.wallet.connect();
-        const walletState: WalletState = {
-          ...apiResult,
-          connectorType: 'metamask' as WalletType
-        };
-        result = walletState;
+        try {
+          // First try to use the injected connector
+          await injectedConnector.activate();
+          const provider = await injectedConnector.getProvider();
+          
+          if (provider) {
+            const accounts = await provider.request({ method: 'eth_accounts' });
+            const address = accounts[0];
+            const balanceHex = await provider.request({
+              method: 'eth_getBalance',
+              params: [address, 'latest']
+            });
+            
+            // Convert hex balance to ETH
+            const balanceWei = parseInt(balanceHex, 16);
+            const balanceEth = (balanceWei / 1e18).toFixed(4);
+            
+            const walletState: WalletState = {
+              address,
+              balance: balanceEth,
+              connected: true,
+              connectorType: 'metamask'
+            };
+            result = walletState;
+          } else {
+            throw new Error('Failed to get provider from MetaMask');
+          }
+        } catch (error) {
+          console.error('MetaMask error:', error);
+          // Fallback to API-based connection
+          const apiResult = await api.wallet.connect();
+          const walletState: WalletState = {
+            ...apiResult,
+            connectorType: 'metamask' as WalletType
+          };
+          result = walletState;
+        }
       }
       
       setWalletState(result);
@@ -275,6 +311,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error(`Error disconnecting from ${walletState.connectorType}:`, error);
+        }
+      } else if (walletState?.connectorType === 'metamask') {
+        // Disconnect from MetaMask
+        try {
+          await injectedConnector.deactivate();
+          
+          // If using window.ethereum directly, also reset connection
+          if (typeof window !== 'undefined' && window.ethereum) {
+            console.log('Resetting MetaMask connection');
+          }
+        } catch (error) {
+          console.error('Error disconnecting from MetaMask:', error);
         }
       }
       
