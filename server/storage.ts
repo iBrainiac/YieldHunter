@@ -109,7 +109,8 @@ export class MemStorage implements IStorage {
       { name: "Binance Smart Chain", shortName: "BSC", logo: "B", isActive: true },
       { name: "Arbitrum", shortName: "ARB", logo: "A", isActive: true },
       { name: "Optimism", shortName: "OP", logo: "O", isActive: true },
-      { name: "Solana", shortName: "SOL", logo: "S", isActive: true }
+      { name: "Solana", shortName: "SOL", logo: "S", isActive: true },
+      { name: "Base", shortName: "BASE", logo: "B", isActive: true }
     ];
     
     for (const network of networks) {
@@ -137,7 +138,11 @@ export class MemStorage implements IStorage {
       { protocolId: 3, networkId: 3, asset: "CAKE-BNB LP", apy: 34.5, tvl: 150000000, riskLevel: "high", details: "LP farming on PancakeSwap", url: "https://pancakeswap.finance" },
       { protocolId: 4, networkId: 1, asset: "3pool", apy: 8.2, tvl: 950000000, riskLevel: "low", details: "Stablecoin pool on Curve", url: "https://curve.fi" },
       { protocolId: 5, networkId: 2, asset: "SUSHI-ETH LP", apy: 22.7, tvl: 120000000, riskLevel: "medium", details: "LP farming on SushiSwap", url: "https://app.sushi.com" },
-      { protocolId: 6, networkId: 1, asset: "cvxCRV", apy: 15.6, tvl: 730000000, riskLevel: "medium", details: "Staking on Convex", url: "https://convexfinance.com" }
+      { protocolId: 6, networkId: 1, asset: "cvxCRV", apy: 15.6, tvl: 730000000, riskLevel: "medium", details: "Staking on Convex", url: "https://convexfinance.com" },
+      // Base L2 opportunities
+      { protocolId: 5, networkId: 7, asset: "SUSHI-ETH LP", apy: 28.3, tvl: 85000000, riskLevel: "medium", details: "LP farming on SushiSwap (Base)", url: "https://app.sushi.com" },
+      { protocolId: 5, networkId: 7, asset: "SUSHI-USDC LP", apy: 31.2, tvl: 65000000, riskLevel: "medium", details: "LP farming on SushiSwap (Base)", url: "https://app.sushi.com" },
+      { protocolId: 4, networkId: 7, asset: "Base-3pool", apy: 11.8, tvl: 220000000, riskLevel: "low", details: "Stablecoin pool on Curve (Base)", url: "https://curve.fi" }
     ];
     
     for (const opportunity of opportunities) {
@@ -159,10 +164,10 @@ export class MemStorage implements IStorage {
     const config = await this.createAgentConfiguration({
       scanFrequency: "hourly",
       riskTolerance: "low",
-      networks: ["ethereum", "polygon", "bsc"],
+      networks: ["ethereum", "polygon", "bsc", "base"],
       postingMode: "approval",
       parallelScanning: true,
-      maxAgents: 3,
+      maxAgents: 4,
       userId: null
     });
     
@@ -194,6 +199,17 @@ export class MemStorage implements IStorage {
       assignedNetwork: 1, // Ethereum
       currentTask: "Waiting for next scan",
       performance: { successRate: 97, lastFound: "2023-04-08T12:03:22Z", opportunitiesFound: 7 },
+      configurationId: config.id
+    });
+    
+    // Create dedicated Base L2 liquidity pool scanner agent
+    await this.createAgentInstance({
+      name: "Base LP Scanner",
+      status: "idle",
+      assignedProtocol: 5, // SushiSwap 
+      assignedNetwork: 7, // Base
+      currentTask: "Monitoring Base liquidity pools",
+      performance: { successRate: 99, lastFound: "2023-04-08T22:45:31Z", opportunitiesFound: 5 },
       configurationId: config.id
     });
   }
