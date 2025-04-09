@@ -98,14 +98,14 @@ export default function Portfolio() {
       <Header title="Portfolio" />
       
       <div className="p-4 md:p-6">
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="assets">Assets</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="overview">
+          <TabsContent value="overview" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="lg:col-span-2">
                 <Card>
@@ -317,7 +317,7 @@ export default function Portfolio() {
             </Card>
           </TabsContent>
           
-          <TabsContent value="assets">
+          <TabsContent value="assets" className="mt-0">
             <Card>
               <CardHeader>
                 <h3 className="font-bold flex items-center">
@@ -398,7 +398,7 @@ export default function Portfolio() {
             </Card>
           </TabsContent>
           
-          <TabsContent value="history">
+          <TabsContent value="history" className="mt-0">
             <Card>
               <CardHeader>
                 <h3 className="font-bold flex items-center">
