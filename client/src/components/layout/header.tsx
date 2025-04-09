@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/ui/theme-provider";
+import ConnectWallet from "@/components/wallet/connect-wallet";
 
 interface HeaderProps {
   title: string;
@@ -19,6 +20,7 @@ export default function Header({ title }: HeaderProps) {
       <div className="flex items-center justify-between p-4">
         <h1 className="text-xl font-bold">{title}</h1>
         <div className="flex items-center space-x-4">
+          <ConnectWallet />
           <button className="p-2 rounded-md text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-700">
             <Info className="h-5 w-5" />
           </button>
