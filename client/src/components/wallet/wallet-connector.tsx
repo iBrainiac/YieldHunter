@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Wallet } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
+import { WalletType } from '@/lib/wallet-connectors';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,8 +19,15 @@ export default function WalletConnector({ collapsed = false }: WalletConnectorPr
   const { walletState, connect, disconnect, isConnecting, isDisconnecting } = useWallet();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const handleConnect = async (walletType: 'metamask' | 'walletconnect' | 'smartwallet' = 'metamask') => {
+  const handleConnect = async (walletType: WalletType = 'metamask') => {
     try {
+      // Make sure we completely disconnect first
+      if (walletState?.connected) {
+        await disconnect();
+      }
+      // Wait a brief moment to ensure everything is properly disconnected
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Now connect with the new wallet type
       await connect(walletType);
     } catch (error) {
       console.error(`Failed to connect ${walletType} wallet`, error);

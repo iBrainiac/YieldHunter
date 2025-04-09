@@ -10,16 +10,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Wallet } from "lucide-react";
+import { Loader2, Wallet, Shield } from "lucide-react";
 import { ethereumService } from "@/lib/ethereum";
+import { WalletType } from "@/lib/wallet-connectors";
 
 export function ConnectWallet() {
   const { walletState, isConnecting, isSwitchingNetwork, connect, disconnect } = useWallet();
   const [open, setOpen] = useState(false);
 
-  const handleConnect = async () => {
+  const handleConnect = async (walletType: WalletType = 'metamask') => {
     try {
-      await connect();
+      // Make sure we completely disconnect first if already connected
+      if (walletState?.connected) {
+        await disconnect();
+        // Wait a brief moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      await connect(walletType);
       setOpen(false);
     } catch (error) {
       console.error("Connection error:", error);
@@ -77,10 +85,11 @@ export function ConnectWallet() {
         </DialogHeader>
         <div className="py-4">
           <div className="flex flex-col gap-4">
+            {/* MetaMask Option */}
             <Button
               variant="outline"
               className="flex items-center justify-between w-full py-6"
-              onClick={handleConnect}
+              onClick={() => handleConnect('metamask')}
               disabled={isConnecting || isSwitchingNetwork || !ethereumService.isMetaMaskInstalled()}
             >
               <div className="flex items-center gap-3">
@@ -100,9 +109,59 @@ export function ConnectWallet() {
                 <Loader2 className="h-5 w-5 animate-spin" />
               )}
             </Button>
+            
+            {/* WalletConnect Option */}
+            <Button
+              variant="outline"
+              className="flex items-center justify-between w-full py-6"
+              onClick={() => handleConnect('walletconnect')}
+              disabled={isConnecting || isSwitchingNetwork}
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://walletconnect.com/images/walletconnect-logo.svg"
+                  alt="WalletConnect"
+                  className="w-8 h-8"
+                />
+                <div className="text-left">
+                  <p className="font-medium">WalletConnect</p>
+                  <p className="text-sm text-muted-foreground">
+                    Connect with WalletConnect
+                  </p>
+                </div>
+              </div>
+              {(isConnecting || isSwitchingNetwork) && (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              )}
+            </Button>
+            
+            {/* Smart Wallet Option */}
+            <Button
+              variant="outline"
+              className="flex items-center justify-between w-full py-6"
+              onClick={() => handleConnect('smartwallet')}
+              disabled={isConnecting || isSwitchingNetwork}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Smart Wallet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Social recovery & gasless transactions
+                  </p>
+                </div>
+              </div>
+              {(isConnecting || isSwitchingNetwork) && (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              )}
+            </Button>
+            
+            {/* MetaMask warning if not installed */}
             {!ethereumService.isMetaMaskInstalled() && (
               <p className="text-sm text-yellow-600">
-                MetaMask extension is not installed. Please install MetaMask to continue.
+                MetaMask extension is not installed. Use an alternative wallet or install MetaMask.
               </p>
             )}
           </div>
