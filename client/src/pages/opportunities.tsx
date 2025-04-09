@@ -11,7 +11,13 @@ import { Search, SlidersHorizontal, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWallet } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import DepositForm from "@/components/deposit/deposit-form";
+import { DepositForm } from "@/components/deposit/deposit-form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Opportunity {
   id: number;
@@ -72,6 +78,11 @@ export default function OpportunitiesPage() {
   const handleOpenDeposit = (opportunity: Opportunity) => {
     setDepositOpportunity(opportunity);
     setIsDepositOpen(true);
+  };
+
+  const handleCloseDeposit = () => {
+    setIsDepositOpen(false);
+    setDepositOpportunity(null);
   };
   
   return (
@@ -204,13 +215,23 @@ export default function OpportunitiesPage() {
         </Card>
       </div>
 
-      {depositOpportunity && (
-        <DepositForm
-          opportunity={depositOpportunity}
-          isOpen={isDepositOpen}
-          onOpenChange={setIsDepositOpen}
-        />
-      )}
+      {/* Deposit Dialog */}
+      <Dialog open={isDepositOpen} onOpenChange={setIsDepositOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deposit Funds</DialogTitle>
+          </DialogHeader>
+          {depositOpportunity && (
+            <DepositForm
+              protocolName={depositOpportunity.protocol?.name || "Protocol"}
+              asset={depositOpportunity.asset}
+              apy={depositOpportunity.apy}
+              onSuccess={handleCloseDeposit}
+              onCancel={handleCloseDeposit}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

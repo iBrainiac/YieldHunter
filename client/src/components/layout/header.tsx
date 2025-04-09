@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/ui/theme-provider";
-import ConnectWallet from "@/components/wallet/connect-wallet";
+import { ConnectWallet } from "@/components/wallet/connect-wallet";
 
 interface HeaderProps {
   title: string;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useWallet } from "@/hooks/use-wallet";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,114 +8,114 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Loader2, Wallet } from "lucide-react";
-import { useWallet } from "@/hooks/use-wallet";
+import { ethereumService } from "@/lib/ethereum";
 
-export default function ConnectWallet() {
-  const [isOpen, setIsOpen] = useState(false);
-  const { walletState, isConnecting, isDisconnecting, connect, disconnect } = useWallet();
+export function ConnectWallet() {
+  const { walletState, isConnecting, isSwitchingNetwork, connect, disconnect } = useWallet();
+  const [open, setOpen] = useState(false);
 
-  const handleConnectClick = () => {
-    if (walletState?.connected) {
-      disconnect();
-    } else {
-      setIsOpen(true);
+  const handleConnect = async () => {
+    try {
+      await connect();
+      setOpen(false);
+    } catch (error) {
+      console.error("Connection error:", error);
+      // Error handling is done in the wallet context
     }
   };
 
-  const handleConnect = () => {
-    connect().then(() => {
-      setIsOpen(false);
-    });
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+    } catch (error) {
+      console.error("Disconnection error:", error);
+      // Error handling is done in the wallet context
+    }
   };
 
-  const isPending = isConnecting || isDisconnecting;
-  const buttonText = walletState?.connected
-    ? `${walletState.address.substring(0, 6)}...${walletState.address.substring(
-        walletState.address.length - 4
-      )} (${walletState.balance})`
-    : "Connect Wallet";
+  if (walletState?.connected) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="text-right hidden sm:block">
+          <p className="text-xs text-muted-foreground">
+            {walletState.balance}
+          </p>
+          <p className="text-sm font-medium truncate max-w-[120px]">
+            {walletState.address.substring(0, 6)}...{walletState.address.substring(
+              walletState.address.length - 4
+            )}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDisconnect}
+        >
+          Disconnect
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Button
-        variant={walletState?.connected ? "default" : "outline"}
-        size="sm"
-        className="flex items-center gap-2"
-        onClick={handleConnectClick}
-        disabled={isPending}
-      >
-        {isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Wallet className="h-4 w-4" />
-        )}
-        {buttonText}
-      </Button>
-
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connect your wallet</DialogTitle>
-            <DialogDescription>
-              Connect your crypto wallet to access DeFi yield opportunities
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-6">
-            <div className="space-y-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-                onClick={handleConnect}
-                disabled={isPending}
-              >
-                <img
-                  src="https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/metamask-fox.svg"
-                  alt="MetaMask"
-                  className="mr-2 h-6 w-6"
-                />
-                MetaMask
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-                onClick={handleConnect}
-                disabled={isPending}
-              >
-                <img
-                  src="https://app.walletconnect.com/favicon.ico"
-                  alt="WalletConnect"
-                  className="mr-2 h-6 w-6"
-                />
-                WalletConnect
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal"
-                onClick={handleConnect}
-                disabled={isPending}
-              >
-                <img
-                  src="https://coinbase.com/favicon.ico"
-                  alt="Coinbase Wallet"
-                  className="mr-2 h-6 w-6"
-                />
-                Coinbase Wallet
-              </Button>
-            </div>
-          </div>
-          <DialogFooter className="flex flex-col sm:flex-row sm:justify-end">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Wallet className="mr-2 h-4 w-4" />
+          Connect Wallet
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Connect your wallet</DialogTitle>
+          <DialogDescription>
+            Connect your wallet to deposit funds and start earning yield
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <div className="flex flex-col gap-4">
             <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsOpen(false)}
+              variant="outline"
+              className="flex items-center justify-between w-full py-6"
+              onClick={handleConnect}
+              disabled={isConnecting || isSwitchingNetwork || !ethereumService.isMetaMaskInstalled()}
             >
-              Cancel
+              <div className="flex items-center gap-3">
+                <img
+                  src="https://metamask.io/images/metamask-fox.svg"
+                  alt="MetaMask"
+                  className="w-8 h-8"
+                />
+                <div className="text-left">
+                  <p className="font-medium">MetaMask</p>
+                  <p className="text-sm text-muted-foreground">
+                    Connect to your MetaMask wallet
+                  </p>
+                </div>
+              </div>
+              {(isConnecting || isSwitchingNetwork) && (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+            {!ethereumService.isMetaMaskInstalled() && (
+              <p className="text-sm text-yellow-600">
+                MetaMask extension is not installed. Please install MetaMask to continue.
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row">
+          <Button variant="secondary" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <p className="text-xs text-muted-foreground mb-2 sm:mb-0 sm:ml-auto">
+            Transactions use the Sepolia testnet
+          </p>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

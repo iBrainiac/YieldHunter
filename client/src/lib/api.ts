@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/queryClient";
+import { ethereumService } from "@/lib/ethereum";
 
 interface TransactionParams {
   opportunityId: number;
@@ -28,21 +29,82 @@ interface AgentConfigParams {
 export const api = {
   // Wallet functions
   wallet: {
-    connect: async (address: string) => {
-      const response = await apiRequest("POST", "/api/wallet/connect", { address });
-      return response.json();
+    connect: async () => {
+      try {
+        if (!ethereumService.isMetaMaskInstalled()) {
+          throw new Error("MetaMask is not installed. Please install MetaMask extension to connect your wallet.");
+        }
+        
+        // Connect to wallet
+        const walletData = await ethereumService.connectWallet();
+        
+        // Switch to the appropriate testnet
+        await ethereumService.switchToTestnet();
+        
+        // Record the connection in the backend
+        const response = await apiRequest("POST", "/api/wallet/connect", { 
+          address: walletData.address 
+        });
+        
+        // Return wallet state with data from both MetaMask and backend
+        return {
+          ...walletData,
+          connected: true
+        };
+      } catch (error) {
+        console.error("Error connecting wallet:", error);
+        throw error;
+      }
     },
+    
     disconnect: async () => {
+      // Clear local wallet state
+      ethereumService.disconnect();
+      
+      // Inform backend about disconnect
       const response = await apiRequest("POST", "/api/wallet/disconnect", {});
-      return response.json();
+      return { connected: false };
     }
   },
   
   // Transaction functions
   transaction: {
     execute: async ({ opportunityId, amount }: TransactionParams) => {
-      const response = await apiRequest("POST", "/api/transaction", { opportunityId, amount });
-      return response.json();
+      try {
+        // Get opportunity details from backend
+        const res = await apiRequest("GET", `/api/opportunities/${opportunityId}`);
+        const opportunity = await res.json();
+        
+        if (!opportunity) {
+          throw new Error("Opportunity not found");
+        }
+        
+        // Get protocol name for the deposit
+        const protocolRes = await apiRequest("GET", `/api/protocols/${opportunity.protocolId}`);
+        const protocol = await protocolRes.json();
+        
+        if (!protocol) {
+          throw new Error("Protocol not found");
+        }
+        
+        // Execute the transaction through the blockchain
+        const result = await ethereumService.depositToProtocol(
+          ethereumService.getProtocolAddress(protocol.name),
+          amount
+        );
+        
+        // Log the transaction in our system
+        await apiRequest("POST", "/api/transaction", {
+          opportunityId,
+          amount,
+          transactionHash: result.transactionHash
+        });
+        
+        return result;
+      } catch (error) {
+        console.error("Transaction error:", error);
+        throw error;
+      }
     }
   },
   
