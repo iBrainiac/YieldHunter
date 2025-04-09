@@ -3,11 +3,14 @@ import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 import { ethereumService } from "@/lib/ethereum";
+import { injectedConnector, walletConnectConnector, WalletType } from "@/lib/wallet-connectors";
+import { useWeb3React } from "@web3-react/core";
 
 export interface WalletState {
   address: string;
   balance: string;
   connected: boolean;
+  connectorType?: WalletType;
 }
 
 interface WalletContextType {
@@ -15,7 +18,7 @@ interface WalletContextType {
   isConnecting: boolean;
   isDisconnecting: boolean;
   isSwitchingNetwork: boolean;
-  connect: () => Promise<WalletState>;
+  connect: (walletType?: WalletType) => Promise<WalletState>;
   disconnect: () => Promise<void>;
   depositToProtocol: (protocolName: string, amount: string) => Promise<{
     success: boolean;
@@ -163,13 +166,114 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const connect = async () => {
-    const result = await connectMutation.mutateAsync();
-    return result;
+  const connect = async (walletType: WalletType = 'metamask') => {
+    setIsSwitchingNetwork(true);
+    try {
+      // Connect using the specified connector
+      let result;
+      
+      if (walletType === 'walletconnect') {
+        try {
+          // Use WalletConnect
+          await walletConnectConnector.activate();
+          // Cast walletConnectConnector to any to access provider
+          const provider = (walletConnectConnector as any).provider;
+          
+          if (provider) {
+            const accounts = await provider.request({ method: 'eth_accounts' });
+            const address = accounts[0];
+            const balanceHex = await provider.request({
+              method: 'eth_getBalance',
+              params: [address, 'latest']
+            });
+            
+            // Convert hex balance to ETH
+            const balanceWei = parseInt(balanceHex, 16);
+            const balanceEth = (balanceWei / 1e18).toFixed(4);
+            
+            const walletState: WalletState = {
+              address,
+              balance: balanceEth,
+              connected: true,
+              connectorType: 'walletconnect'
+            };
+            result = walletState;
+          } else {
+            throw new Error('Failed to get provider from WalletConnect');
+          }
+        } catch (error) {
+          console.error('WalletConnect error:', error);
+          // Fallback to API-based connection
+          const apiResult = await api.wallet.connect();
+          const walletState: WalletState = {
+            ...apiResult,
+            connectorType: 'metamask' as WalletType
+          };
+          result = walletState;
+        }
+      } else {
+        // Default to MetaMask/Injected
+        const apiResult = await api.wallet.connect();
+        const walletState: WalletState = {
+          ...apiResult,
+          connectorType: 'metamask' as WalletType
+        };
+        result = walletState;
+      }
+      
+      setWalletState(result);
+      
+      toast({
+        title: "Wallet Connected",
+        description: `Connected to ${result.address.substring(0, 6)}...${result.address.substring(
+          result.address.length - 4
+        )}`,
+      });
+      
+      return result;
+    } catch (error) {
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsSwitchingNetwork(false);
+    }
   };
 
   const disconnect = async () => {
-    await disconnectMutation.mutateAsync();
+    try {
+      // First try to disconnect from the connector based on type
+      if (walletState?.connectorType === 'walletconnect') {
+        // Disconnect from WalletConnect
+        try {
+          await walletConnectConnector.deactivate();
+        } catch (error) {
+          console.error('Error disconnecting from WalletConnect:', error);
+        }
+      }
+      
+      // Always call the API disconnect as a fallback
+      await disconnectMutation.mutateAsync();
+      
+      // Ensure wallet state is cleared
+      setWalletState(null);
+      
+      toast({
+        title: "Wallet Disconnected",
+        description: "Your wallet has been disconnected",
+      });
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+      toast({
+        title: "Disconnect Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const depositToProtocol = async (protocolName: string, amount: string) => {
