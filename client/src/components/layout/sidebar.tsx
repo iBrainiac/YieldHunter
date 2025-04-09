@@ -116,19 +116,21 @@ export default function Sidebar({ className }: SidebarProps) {
         <nav className="p-2">
           <div className="space-y-1">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <a
-                  className={cn(
-                    "flex items-center p-2 rounded-md",
-                    location === item.href
-                      ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
-                      : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700/50"
-                  )}
-                >
-                  {item.icon}
-                  {!collapsed && <span>{item.title}</span>}
-                </a>
-              </Link>
+              <div key={item.href} className="nav-item">
+                <Link href={item.href}>
+                  <div
+                    className={cn(
+                      "flex items-center p-2 rounded-md cursor-pointer",
+                      location === item.href
+                        ? "bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                        : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700/50"
+                    )}
+                  >
+                    {item.icon}
+                    {!collapsed && <span>{item.title}</span>}
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
         </nav>

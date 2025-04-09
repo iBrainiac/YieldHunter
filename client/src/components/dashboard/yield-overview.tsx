@@ -51,9 +51,9 @@ export default function YieldOverview() {
               </div>
               <div>
                 <h3 className="font-bold">AI Yield Agent Status</h3>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                <div className="text-sm text-neutral-500 dark:text-neutral-400">
                   Last updated: {isLoading ? <Skeleton className="h-4 w-24 inline-block" /> : new Date().toLocaleString()}
-                </p>
+                </div>
               </div>
             </div>
             <div className="mt-4 md:mt-0 flex items-center space-x-3">
