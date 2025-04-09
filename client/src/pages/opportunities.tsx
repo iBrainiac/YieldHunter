@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, SlidersHorizontal, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWallet } from "@/hooks/use-wallet";
+import { useToast } from "@/hooks/use-toast";
+import DepositForm from "@/components/deposit/deposit-form";
 
 interface Opportunity {
   id: number;
@@ -39,6 +42,8 @@ export default function OpportunitiesPage() {
   const [networkFilter, setNetworkFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [viewType, setViewType] = useState("grid");
+  const [depositOpportunity, setDepositOpportunity] = useState<Opportunity | null>(null);
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
   
   const { data: opportunities, isLoading } = useQuery<Opportunity[]>({
     queryKey: ["/api/opportunities"],
@@ -63,6 +68,11 @@ export default function OpportunitiesPage() {
     
     return matchesSearch && matchesNetwork && matchesRisk;
   });
+
+  const handleOpenDeposit = (opportunity: Opportunity) => {
+    setDepositOpportunity(opportunity);
+    setIsDepositOpen(true);
+  };
   
   return (
     <div>
@@ -166,13 +176,21 @@ export default function OpportunitiesPage() {
               viewType === "grid" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredOpportunities.map(opportunity => (
-                    <OpportunityCard key={opportunity.id} opportunity={opportunity} />
+                    <OpportunityCard 
+                      key={opportunity.id} 
+                      opportunity={opportunity}
+                      onDeposit={() => handleOpenDeposit(opportunity)}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
                   {filteredOpportunities.map(opportunity => (
-                    <OpportunityListItem key={opportunity.id} opportunity={opportunity} />
+                    <OpportunityListItem 
+                      key={opportunity.id} 
+                      opportunity={opportunity}
+                      onDeposit={() => handleOpenDeposit(opportunity)}
+                    />
                   ))}
                 </div>
               )
@@ -185,11 +203,22 @@ export default function OpportunitiesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {depositOpportunity && (
+        <DepositForm
+          opportunity={depositOpportunity}
+          isOpen={isDepositOpen}
+          onOpenChange={setIsDepositOpen}
+        />
+      )}
     </div>
   );
 }
 
-function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+function OpportunityCard({ opportunity, onDeposit }: { opportunity: Opportunity; onDeposit: () => void }) {
+  const { walletState } = useWallet();
+  const { toast } = useToast();
+
   const getRiskColor = (risk: string) => {
     switch (risk.toLowerCase()) {
       case "low": return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
@@ -197,6 +226,18 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       case "high": return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default: return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-400";
     }
+  };
+
+  const handleClick = () => {
+    if (!walletState?.connected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first to deposit funds",
+        variant: "destructive",
+      });
+      return;
+    }
+    onDeposit();
   };
   
   return (
@@ -225,11 +266,13 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       
       <div className="mb-4">
         <div className="text-sm mb-1">Asset: <span className="font-medium">{opportunity.asset}</span></div>
-        <div className="text-sm">TVL: <span className="font-medium">${opportunity.tvl ? opportunity.tvl.toLocaleString() : "N/A"}</span></div>
+        <div className="text-sm">TVL: <span className="font-medium">${opportunity.tvl ? (opportunity.tvl / 1000000).toFixed(1) + 'M' : "N/A"}</span></div>
       </div>
       
       <div className="flex space-x-2">
-        <Button className="flex-1">Invest</Button>
+        <Button className="flex-1" onClick={handleClick}>
+          Deposit Funds
+        </Button>
         <Button variant="outline" size="icon" asChild>
           <a href={opportunity.url} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-4 w-4" />
@@ -240,7 +283,10 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   );
 }
 
-function OpportunityListItem({ opportunity }: { opportunity: Opportunity }) {
+function OpportunityListItem({ opportunity, onDeposit }: { opportunity: Opportunity; onDeposit: () => void }) {
+  const { walletState } = useWallet();
+  const { toast } = useToast();
+
   const getRiskColor = (risk: string) => {
     switch (risk.toLowerCase()) {
       case "low": return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
@@ -248,6 +294,18 @@ function OpportunityListItem({ opportunity }: { opportunity: Opportunity }) {
       case "high": return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
       default: return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-400";
     }
+  };
+
+  const handleClick = () => {
+    if (!walletState?.connected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first to deposit funds",
+        variant: "destructive",
+      });
+      return;
+    }
+    onDeposit();
   };
   
   return (
@@ -280,7 +338,7 @@ function OpportunityListItem({ opportunity }: { opportunity: Opportunity }) {
           {opportunity.riskLevel}
         </Badge>
         <div className="flex space-x-2">
-          <Button size="sm">Invest</Button>
+          <Button size="sm" onClick={handleClick}>Deposit Funds</Button>
           <Button variant="outline" size="icon" asChild>
             <a href={opportunity.url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4" />

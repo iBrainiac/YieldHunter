@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,74 +9,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, Wallet } from "lucide-react";
-
-interface WalletState {
-  address: string;
-  balance: string;
-  connected: boolean;
-}
+import { useWallet } from "@/hooks/use-wallet";
 
 export default function ConnectWallet() {
   const [isOpen, setIsOpen] = useState(false);
-  const [walletState, setWalletState] = useState<WalletState | null>(null);
-  const { toast } = useToast();
-
-  const connectMutation = useMutation({
-    mutationFn: async () => {
-      // In a real app, this would connect to MetaMask or other wallet
-      // For demo purposes, we'll use our mock API endpoint
-      const mockAddress = "0x" + Math.random().toString(16).substring(2, 42);
-      const response = await apiRequest("POST", "/api/wallet/connect", {
-        address: mockAddress,
-      });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setWalletState(data);
-      toast({
-        title: "Wallet Connected",
-        description: `Connected to ${data.address.substring(0, 6)}...${data.address.substring(
-          data.address.length - 4
-        )}`,
-      });
-      setIsOpen(false);
-    },
-    onError: (error) => {
-      toast({
-        title: "Connection Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const disconnectMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/wallet/disconnect", {});
-      return response.json();
-    },
-    onSuccess: () => {
-      setWalletState(null);
-      toast({
-        title: "Wallet Disconnected",
-        description: "Your wallet has been disconnected",
-      });
-    },
-  });
+  const { walletState, isConnecting, isDisconnecting, connect, disconnect } = useWallet();
 
   const handleConnectClick = () => {
     if (walletState?.connected) {
-      disconnectMutation.mutate();
+      disconnect();
     } else {
       setIsOpen(true);
     }
   };
 
   const handleConnect = () => {
-    connectMutation.mutate();
+    connect().then(() => {
+      setIsOpen(false);
+    });
   };
 
-  const isPending = connectMutation.isPending || disconnectMutation.isPending;
+  const isPending = isConnecting || isDisconnecting;
   const buttonText = walletState?.connected
     ? `${walletState.address.substring(0, 6)}...${walletState.address.substring(
         walletState.address.length - 4
