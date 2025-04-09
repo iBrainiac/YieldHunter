@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import WalletConnector from "@/components/wallet/wallet-connector";
 import { 
   ChartBarStacked, 
   ListOrdered, 
@@ -118,7 +119,10 @@ export default function Sidebar({ className }: SidebarProps) {
           </button>
         </div>
         
-        {/* Removed wallet section */}
+        {/* Wallet Section */}
+        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
+          <WalletConnector collapsed={collapsed} />
+        </div>
         
         {/* Navigation */}
         <nav className="p-2">

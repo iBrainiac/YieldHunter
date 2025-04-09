@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizontal, Bot, User, Coins, Sparkles, AlertTriangle, Check } from "lucide-react";
+import { useWallet } from "@/hooks/use-wallet";
 import { protocolsApi, networksApi, api } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -62,12 +63,7 @@ export default function ChatInterface() {
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  // Simulate wallet state
-  const walletState = {
-    connected: true,
-    address: "0x1D1cE94647FA8d03BF29Ebf1C0FB87B3Eed659Ab",
-    balance: "2.5"
-  };
+  const { walletState, connect } = useWallet();
   
   // Get opportunities
   const { data: opportunities = [] } = useQuery<Opportunity[]>({
@@ -322,17 +318,28 @@ export default function ChatInterface() {
       actionStatus: 'pending'
     });
     
-    // Simulate successful wallet connection with fixed data
-    setTimeout(() => {
+    try {
+      // Use the real wallet connection
+      const result = await connect();
+      
       addMessage({
         id: Date.now().toString(),
         sender: 'bot',
-        content: `Wallet connected successfully! Address: ${walletState.address.substring(0, 6)}...${walletState.address.substring(walletState.address.length - 4)}`,
+        content: `Wallet connected successfully! Address: ${result.address.substring(0, 6)}...${result.address.substring(result.address.length - 4)}`,
         timestamp: new Date(),
         isAction: true,
         actionStatus: 'success'
       });
-    }, 1000);
+    } catch (error: any) {
+      addMessage({
+        id: Date.now().toString(),
+        sender: 'bot',
+        content: `Failed to connect wallet: ${error.message || 'Unknown error'}`,
+        timestamp: new Date(),
+        isAction: true,
+        actionStatus: 'error'
+      });
+    }
   };
 
   const handleDepositIntent = (message: string) => {
@@ -590,15 +597,17 @@ export default function ChatInterface() {
     });
     
     try {
-      // Simulated balance data
+      // Get real balance data from the wallet
       const balanceInfo = {
-        native: "2.5 ETH",
+        native: `${walletState.balance} ETH`,
         tokens: [
-          { symbol: "USDC", balance: "1,200.00" },
+          // In a real implementation, we would fetch token balances from the wallet
+          // This would use the real blockchain interaction
+          { symbol: "USDC", balance: "1,200.00" }, 
           { symbol: "WBTC", balance: "0.05" }
         ],
-        totalValue: "$5,480.00"
-      } as any;
+        totalValue: "$5,480.00" // This would be calculated based on current prices
+      };
       
       // Format the balance information
       const tokenList = balanceInfo.tokens.map((token: any) => 
