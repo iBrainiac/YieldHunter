@@ -4,9 +4,13 @@ import SocialPostComposer from "@/components/dashboard/social-post-composer";
 import RecentActivity from "@/components/dashboard/recent-activity";
 import HistoricalPerformance from "@/components/dashboard/historical-performance";
 import AgentConfiguration from "@/components/dashboard/agent-configuration";
+import { TransactionHistory } from "@/components/dashboard/transaction-history";
 import Header from "@/components/layout/header";
+import { useWallet } from "@/hooks/use-wallet";
 
 export default function Dashboard() {
+  const { walletState } = useWallet();
+  
   return (
     <div>
       <Header title="Dashboard" />
@@ -28,6 +32,13 @@ export default function Dashboard() {
             <RecentActivity />
           </div>
         </div>
+        
+        {/* Transaction History Section (only shown when wallet is connected) */}
+        {walletState?.connected && (
+          <div className="mb-8">
+            <TransactionHistory />
+          </div>
+        )}
         
         {/* Historical Performance Section */}
         <HistoricalPerformance />

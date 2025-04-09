@@ -1,21 +1,5 @@
 import { ethers } from "ethers";
-
-// Simple ERC20 ABI for token interactions
-const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "event Transfer(address indexed from, address indexed to, uint256 amount)"
-];
-
-// Protocol contract ABIs (simplified for demonstration)
-const PROTOCOL_ABI = [
-  "function deposit(uint256 amount) returns (bool)",
-  "function withdraw(uint256 amount) returns (bool)",
-  "function getAPY() view returns (uint256)",
-  "function getUserDeposit(address user) view returns (uint256)"
-];
+import { protocolService, getProtocolAddress } from "./contracts";
 
 // Testnet configuration
 export const TESTNET_CONFIG = {
@@ -28,14 +12,6 @@ export const TESTNET_CONFIG = {
     decimals: 18,
   },
   blockExplorerUrl: "https://sepolia.etherscan.io",
-};
-
-// Protocol addresses on testnet (these would be actual contract addresses in production)
-export const TESTNET_CONTRACTS = {
-  aave: "0x1234567890123456789012345678901234567890",
-  compound: "0x2345678901234567890123456789012345678901",
-  curve: "0x3456789012345678901234567890123456789012",
-  // Add more protocols as needed
 };
 
 // Helper function to convert number to hex
@@ -68,6 +44,9 @@ export class EthereumService {
       
       // Get the signer
       this.signer = await this.provider.getSigner();
+      
+      // Update protocol service with the new signer
+      protocolService.setSigner(this.signer);
       
       // Get the connected wallet address
       const address = await this.signer.getAddress();
@@ -102,6 +81,9 @@ export class EthereumService {
   disconnect(): void {
     this.provider = null;
     this.signer = null;
+    
+    // Clear protocol service signer
+    protocolService.setSigner(null);
   }
   
   // Switch to the testnet
@@ -160,7 +142,7 @@ export class EthereumService {
   
   // Deposit funds into a protocol
   async depositToProtocol(
-    protocolAddress: string, 
+    protocolName: string, 
     amount: string
   ): Promise<{ success: boolean; transactionHash: string }> {
     if (!this.provider || !this.signer) {
@@ -168,28 +150,8 @@ export class EthereumService {
     }
     
     try {
-      // Create contract instance for the protocol
-      const protocolContract = new ethers.Contract(
-        protocolAddress,
-        PROTOCOL_ABI,
-        this.signer
-      );
-      
-      // Convert amount from ETH to Wei
-      const amountInWei = ethers.parseEther(amount);
-      
-      // Send transaction to deposit funds
-      const tx = await protocolContract.deposit(amountInWei, {
-        value: amountInWei // Send ETH with the transaction
-      });
-      
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      
-      return {
-        success: true,
-        transactionHash: receipt.hash
-      };
+      // Use protocol service to handle the transaction
+      return await protocolService.deposit(protocolName, amount);
     } catch (error) {
       console.error("Error depositing to protocol:", error);
       throw error;
@@ -198,17 +160,12 @@ export class EthereumService {
   
   // Helper method to get actual protocol address
   getProtocolAddress(protocolName: string): string {
-    const normalizedName = protocolName.toLowerCase();
-    
-    // Match protocol name to address
-    for (const [key, address] of Object.entries(TESTNET_CONTRACTS)) {
-      if (normalizedName.includes(key)) {
-        return address;
-      }
-    }
-    
-    // Default to Aave if no match found
-    return TESTNET_CONTRACTS.aave;
+    return getProtocolAddress(protocolName);
+  }
+  
+  // Get the current signer (for use in other services)
+  getSigner(): ethers.Signer | null {
+    return this.signer;
   }
 }
 

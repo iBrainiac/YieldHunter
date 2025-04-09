@@ -71,8 +71,17 @@ export function DepositForm({
     try {
       setIsDepositing(true);
       
-      // Execute the deposit
+      // Log the deposit attempt
+      console.log(`Depositing ${data.amount} ETH to ${protocolName}`);
+      
+      // Execute the deposit through the wallet context which uses real blockchain
       await depositToProtocol(protocolName, data.amount);
+      
+      // Show success message
+      toast({
+        title: "Deposit Successful",
+        description: `Your deposit of ${data.amount} ETH to ${protocolName} was successful`,
+      });
       
       // Call the onSuccess callback if provided
       if (onSuccess) {

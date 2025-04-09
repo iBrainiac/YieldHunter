@@ -87,11 +87,15 @@ export const api = {
           throw new Error("Protocol not found");
         }
         
+        console.log(`Executing deposit of ${amount} to ${protocol.name} on ${opportunity.asset}`);
+        
         // Execute the transaction through the blockchain
         const result = await ethereumService.depositToProtocol(
-          ethereumService.getProtocolAddress(protocol.name),
+          protocol.name, // Using the protocol name to find the address in the service
           amount
         );
+        
+        console.log(`Transaction successful: ${result.transactionHash}`);
         
         // Log the transaction in our system
         await apiRequest("POST", "/api/transaction", {
@@ -105,6 +109,12 @@ export const api = {
         console.error("Transaction error:", error);
         throw error;
       }
+    },
+    
+    // Get transaction history
+    getHistory: async () => {
+      const response = await apiRequest("GET", "/api/transactions");
+      return response.json();
     }
   },
   
