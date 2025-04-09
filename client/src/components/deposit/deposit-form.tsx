@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useWallet } from "@/hooks/use-wallet";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -58,6 +59,7 @@ export function DepositForm({
   onCancel,
 }: DepositFormProps) {
   const { walletState, depositToProtocol } = useWallet();
+  const { toast } = useToast();
   const [isDepositing, setIsDepositing] = useState(false);
 
   const form = useForm<DepositFormValues>({
@@ -89,7 +91,13 @@ export function DepositForm({
       }
     } catch (error) {
       console.error("Deposit error:", error);
-      // Error handling is done within the wallet context
+      
+      // Show error message
+      toast({
+        title: "Deposit Failed",
+        description: error instanceof Error ? error.message : "Transaction could not be completed",
+        variant: "destructive",
+      });
     } finally {
       setIsDepositing(false);
     }
