@@ -12,6 +12,7 @@ import SocialPosts from "@/pages/social-posts";
 import Settings from "@/pages/settings";
 import Agents from "@/pages/agents";
 import YieldStrategies from "@/pages/strategies";
+import Chatbot from "@/pages/chatbot";
 import Sidebar from "@/components/layout/sidebar";
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/social-posts" component={SocialPosts} />
           <Route path="/agents" component={Agents} />
           <Route path="/strategies" component={YieldStrategies} />
+          <Route path="/chatbot" component={Chatbot} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

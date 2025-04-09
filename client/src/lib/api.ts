@@ -155,6 +155,12 @@ export const api = {
     getHistory: async () => {
       const response = await apiRequest("GET", "/api/transactions");
       return response.json();
+    },
+    
+    // Get opportunities
+    getOpportunities: async () => {
+      const response = await apiRequest("GET", "/api/opportunities");
+      return response.json();
     }
   },
   

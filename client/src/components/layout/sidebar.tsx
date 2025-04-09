@@ -53,6 +53,11 @@ const navItems: NavItem[] = [
     icon: <BarChart className="h-5 w-5 mr-3" />,
   },
   {
+    title: "AI Assistant",
+    href: "/chatbot",
+    icon: <Bot className="h-5 w-5 mr-3" />,
+  },
+  {
     title: "Settings",
     href: "/settings",
     icon: <Settings className="h-5 w-5 mr-3" />,
