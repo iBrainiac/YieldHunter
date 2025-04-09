@@ -1,6 +1,6 @@
 import { 
   users, protocols, networks, opportunities, socialPosts, activities, 
-  agentConfigurations, agentInstances, yieldStrategies, strategyExecutions,
+  agentConfigurations, agentInstances, yieldStrategies, strategyExecutions, notifications,
   type User, type InsertUser, 
   type Protocol, type InsertProtocol,
   type Network, type InsertNetwork,
@@ -10,8 +10,10 @@ import {
   type AgentConfiguration, type InsertAgentConfiguration,
   type AgentInstance, type InsertAgentInstance,
   type YieldStrategy, type InsertYieldStrategy,
-  type StrategyExecution, type InsertStrategyExecution
+  type StrategyExecution, type InsertStrategyExecution,
+  type Notification, type InsertNotification
 } from "@shared/schema";
+import { sendYieldOpportunityNotification } from "./emailUtils";
 
 // Storage interface with CRUD methods
 export interface IStorage {
@@ -71,6 +73,15 @@ export interface IStorage {
   getStrategyExecution(id: number): Promise<StrategyExecution | undefined>;
   createStrategyExecution(execution: InsertStrategyExecution): Promise<StrategyExecution>;
   executeYieldStrategy(strategyId: number): Promise<StrategyExecution>;
+  
+  // Notification methods
+  getNotifications(userId?: number, limit?: number): Promise<Notification[]>;
+  getUnreadNotificationsCount(userId?: number): Promise<number>;
+  getNotification(id: number): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  markAllNotificationsAsRead(userId: number): Promise<boolean>;
+  deleteNotification(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -84,6 +95,7 @@ export class MemStorage implements IStorage {
   private agentInstances: Map<number, AgentInstance>;
   private yieldStrategies: Map<number, YieldStrategy>;
   private strategyExecutions: Map<number, StrategyExecution>;
+  private notifications: Map<number, Notification>;
   
   private userId: number;
   private protocolId: number;
@@ -95,6 +107,7 @@ export class MemStorage implements IStorage {
   private instanceId: number;
   private strategyId: number;
   private executionId: number;
+  private notificationId: number;
 
   constructor() {
     this.users = new Map();
@@ -107,6 +120,7 @@ export class MemStorage implements IStorage {
     this.agentInstances = new Map();
     this.yieldStrategies = new Map();
     this.strategyExecutions = new Map();
+    this.notifications = new Map();
     
     this.userId = 1;
     this.protocolId = 1;
@@ -118,6 +132,7 @@ export class MemStorage implements IStorage {
     this.instanceId = 1;
     this.strategyId = 1;
     this.executionId = 1;
+    this.notificationId = 1;
     
     // Initialize with sample data for demo (using IIFE to handle async)
     (async () => {
@@ -717,6 +732,45 @@ export class MemStorage implements IStorage {
       userId: strategy.userId
     });
     
+    // Create a notification for the yield strategy execution
+    if (strategy.userId) {
+      // Create in-app notification
+      const notification = await this.createNotification({
+        userId: strategy.userId,
+        type: "strategy",
+        title: `Strategy Executed: ${strategy.name}`,
+        message: `Your strategy was executed with ${bestOpportunity.asset} on ${protocol?.name || 'Unknown protocol'} (${network?.name || 'Unknown network'}) at ${bestOpportunity.apy}% APY.`,
+        link: `/strategies/${strategy.id}`,
+        strategyId: strategy.id,
+        metadata: {
+          apy: bestOpportunity.apy,
+          asset: bestOpportunity.asset,
+          transactionHash
+        },
+        status: "unread"
+      });
+      
+      // Send email notification if SendGrid is configured
+      // Note: Normally we would get the user's email from the user record
+      // For demo purposes, we'll use a placeholder email
+      const userEmail = "user@example.com";
+      
+      try {
+        await sendYieldOpportunityNotification(userEmail, {
+          strategyName: strategy.name,
+          asset: bestOpportunity.asset,
+          protocol: protocol?.name || 'Unknown protocol',
+          network: network?.name || 'Unknown network',
+          apy: bestOpportunity.apy,
+          transactionHash
+        });
+        
+        console.log(`Email notification sent to ${userEmail} for strategy ${strategy.id}`);
+      } catch (error) {
+        console.error('Failed to send email notification:', error);
+      }
+    }
+    
     return this.createStrategyExecution({
       strategyId,
       status: "success",
@@ -733,6 +787,111 @@ export class MemStorage implements IStorage {
       },
       errorMessage: null
     });
+  }
+  
+  // Notification methods
+  async getNotifications(userId?: number, limit?: number): Promise<Notification[]> {
+    let notifications = Array.from(this.notifications.values());
+    
+    if (userId !== undefined) {
+      notifications = notifications.filter(notification => notification.userId === userId);
+    }
+    
+    // Sort by creation date, newest first
+    notifications.sort((a, b) => {
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    
+    if (limit !== undefined) {
+      return notifications.slice(0, limit);
+    }
+    
+    return notifications;
+  }
+  
+  async getUnreadNotificationsCount(userId?: number): Promise<number> {
+    const notifications = await this.getNotifications(userId);
+    return notifications.filter(notification => notification.status === 'unread').length;
+  }
+  
+  async getNotification(id: number): Promise<Notification | undefined> {
+    return this.notifications.get(id);
+  }
+  
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = this.notificationId++;
+    const createdAt = new Date();
+    
+    const newNotification: Notification = {
+      ...notification,
+      id,
+      createdAt,
+      status: notification.status || 'unread',
+      readAt: null
+    };
+    
+    this.notifications.set(id, newNotification);
+    
+    // Create an activity for this notification
+    this.createActivity({
+      type: "notification",
+      description: `New notification: ${notification.title}`,
+      details: { notificationId: id, type: notification.type },
+      userId: notification.userId
+    });
+    
+    return newNotification;
+  }
+  
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    if (!notification) return undefined;
+    
+    const updatedNotification: Notification = {
+      ...notification,
+      status: 'read',
+      readAt: new Date()
+    };
+    
+    this.notifications.set(id, updatedNotification);
+    return updatedNotification;
+  }
+  
+  async markAllNotificationsAsRead(userId: number): Promise<boolean> {
+    const userNotifications = Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId && notification.status === 'unread');
+    
+    if (userNotifications.length === 0) return false;
+    
+    const now = new Date();
+    
+    userNotifications.forEach(notification => {
+      const updated: Notification = {
+        ...notification,
+        status: 'read',
+        readAt: now
+      };
+      this.notifications.set(notification.id, updated);
+    });
+    
+    return true;
+  }
+  
+  async deleteNotification(id: number): Promise<boolean> {
+    const notification = this.notifications.get(id);
+    if (!notification) return false;
+    
+    this.notifications.delete(id);
+    
+    // Log this action
+    this.createActivity({
+      type: "notification",
+      description: `Deleted notification: ${notification.title}`,
+      details: { notificationId: id, type: notification.type },
+      userId: notification.userId
+    });
+    
+    return true;
   }
 }
 
