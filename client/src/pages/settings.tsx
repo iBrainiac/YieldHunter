@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { Loader2, Settings2, Bell, Shield, Key, Activity } from "lucide-react";
 
 interface AgentConfig {
@@ -20,6 +21,8 @@ interface AgentConfig {
   riskTolerance: string;
   networks: string[];
   postingMode: string;
+  parallelScanning: boolean;
+  maxAgents: number;
   userId: number | null;
 }
 
@@ -79,6 +82,8 @@ function AgentSettings() {
     riskTolerance: "low",
     networks: ["ethereum", "polygon", "bsc"],
     postingMode: "approval",
+    parallelScanning: false,
+    maxAgents: 3,
     userId: null
   });
   
@@ -118,7 +123,9 @@ function AgentSettings() {
       scanFrequency: config.scanFrequency,
       riskTolerance: config.riskTolerance,
       networks: config.networks,
-      postingMode: config.postingMode
+      postingMode: config.postingMode,
+      parallelScanning: config.parallelScanning,
+      maxAgents: config.maxAgents
     });
   };
   
@@ -129,6 +136,8 @@ function AgentSettings() {
       riskTolerance: "low",
       networks: ["ethereum", "polygon", "bsc"],
       postingMode: "approval",
+      parallelScanning: false,
+      maxAgents: 3,
       userId: null
     });
   };
@@ -304,6 +313,49 @@ function AgentSettings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium">Parallel Scanning</h4>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  Enable multiple agents to scan opportunities simultaneously
+                </p>
+              </div>
+              <Switch 
+                checked={config.parallelScanning}
+                onCheckedChange={(checked) => {
+                  setConfig({ ...config, parallelScanning: checked });
+                  updateConfigMutation.mutate({ parallelScanning: checked });
+                }}
+              />
+            </div>
+            
+            {config.parallelScanning && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">Max Agents</h4>
+                  <span className="text-sm font-semibold">{config.maxAgents}</span>
+                </div>
+                <div className="px-1">
+                  <Slider
+                    value={[config.maxAgents]}
+                    min={1}
+                    max={10}
+                    step={1}
+                    onValueChange={(value) => {
+                      const maxAgents = value[0];
+                      setConfig({ ...config, maxAgents });
+                      updateConfigMutation.mutate({ maxAgents });
+                    }}
+                    className="my-4"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500">
+                    <span>Fewer</span>
+                    <span>More</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="font-medium">Auto-compound Yields</h4>

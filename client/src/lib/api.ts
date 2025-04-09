@@ -23,6 +23,8 @@ interface AgentConfigParams {
   riskTolerance?: string;
   networks?: string[];
   postingMode?: string;
+  parallelScanning?: boolean;
+  maxAgents?: number;
 }
 
 // Add protocols and networks API functions
@@ -207,6 +209,12 @@ export const api = {
     
     startScan: async (id: number) => {
       const response = await apiRequest("POST", `/api/agent-instances/${id}/scan`);
+      return response.json();
+    },
+    
+    // Start parallel scanning with multiple agents
+    startParallelScan: async (configId: number = 1) => {
+      const response = await apiRequest("POST", "/api/parallel-scan", { configurationId: configId });
       return response.json();
     }
   }

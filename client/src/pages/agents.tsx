@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertCircle, Check, Play, RefreshCw, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Check, Play, RefreshCw, Plus, Trash2, Zap } from "lucide-react";
 import { api, protocolsApi, networksApi } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,6 +110,25 @@ export default function AgentsPage() {
       });
     }
   });
+  
+  // Mutation to start parallel scan
+  const startParallelScanMutation = useMutation({
+    mutationFn: (configId: number) => api.agent.startParallelScan(configId),
+    onSuccess: (data) => {
+      toast({
+        title: "Parallel scan started",
+        description: `Started scanning with ${data.agents.length} agents in parallel`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-instances"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start parallel scan. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Mutation to create new agent
   const createAgentMutation = useMutation({
@@ -187,6 +206,32 @@ export default function AgentsPage() {
       deleteAgentMutation.mutate(agent.id);
     }
   };
+  
+  const handleStartParallelScan = () => {
+    if (!config) return;
+    
+    if (!config.parallelScanning) {
+      toast({
+        title: "Parallel scanning disabled",
+        description: "Enable parallel scanning in settings first",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const idleAgentsCount = agents?.filter(a => a.status === "idle").length || 0;
+    
+    if (idleAgentsCount === 0) {
+      toast({
+        title: "No agents available",
+        description: "All agents are busy or in error state",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    startParallelScanMutation.mutate(config.id);
+  };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -256,27 +301,67 @@ export default function AgentsPage() {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">AI Agents</h1>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
+        <div className="flex gap-2">
+          {/* Parallel Scan Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button 
-                  onClick={() => setIsAddDialogOpen(true)} 
-                  disabled={!canAddMoreAgents}
-                  className="flex items-center gap-2"
+                  onClick={handleStartParallelScan} 
+                  variant="outline"
+                  disabled={
+                    !config?.parallelScanning || 
+                    !(agents?.filter(a => a.status === "idle").length) || 
+                    startParallelScanMutation.isPending
+                  }
+                  className="flex items-center gap-1"
                 >
-                  <Plus size={16} />
-                  Add Agent
+                  {startParallelScanMutation.isPending ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Scanning...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={16} />
+                      <span>Parallel Scan</span>
+                    </>
+                  )}
                 </Button>
-              </div>
-            </TooltipTrigger>
-            {!canAddMoreAgents && (
-              <TooltipContent>
-                <p>Maximum number of agents reached ({config?.maxAgents})</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
+              </TooltipTrigger>
+              {(!config?.parallelScanning || !(agents?.filter(a => a.status === "idle").length)) && (
+                <TooltipContent>
+                  {!config?.parallelScanning 
+                    ? "Parallel scanning is disabled in settings" 
+                    : "No idle agents available for parallel scanning"}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          
+          {/* Add Agent Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Button 
+                    onClick={() => setIsAddDialogOpen(true)} 
+                    disabled={!canAddMoreAgents}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus size={16} />
+                    Add Agent
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!canAddMoreAgents && (
+                <TooltipContent>
+                  <p>Maximum number of agents reached ({config?.maxAgents})</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {agents && agents.length === 0 ? (

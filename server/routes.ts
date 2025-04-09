@@ -643,6 +643,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint for parallel scanning with multiple agents
+  app.post("/api/parallel-scan", async (req: Request, res: Response) => {
+    try {
+      // Get configuration to check if parallel scanning is enabled
+      const configId = req.body.configurationId || 1; // Default to first config if not specified
+      const config = await storage.getAgentConfiguration(configId);
+      
+      if (!config) {
+        return res.status(404).json({ message: "Agent configuration not found" });
+      }
+      
+      if (!config.parallelScanning) {
+        return res.status(400).json({ 
+          message: "Parallel scanning not enabled", 
+          details: "Enable parallel scanning in agent configuration first" 
+        });
+      }
+      
+      // Get all available agents for this config
+      const agents = await storage.getAgentInstancesByConfig(configId);
+      
+      if (!agents || agents.length === 0) {
+        return res.status(404).json({ message: "No agent instances found for this configuration" });
+      }
+      
+      // Filter agents that are available for scanning (idle status)
+      const availableAgents = agents.filter(agent => agent.status === "idle");
+      
+      if (availableAgents.length === 0) {
+        return res.status(400).json({ 
+          message: "No available agents", 
+          details: "All agents are currently busy" 
+        });
+      }
+      
+      // Start scanning with all available agents in parallel
+      const startedScans = [];
+      
+      for (const agent of availableAgents) {
+        // Update agent status
+        const updatedAgent = await storage.updateAgentInstance(agent.id, {
+          status: "scanning",
+          currentTask: "Parallel scanning for yield opportunities"
+        });
+        
+        startedScans.push(updatedAgent);
+        
+        // Simulate scanning in background (would be a proper job queue in production)
+        setTimeout(async () => {
+          try {
+            // Simulate opportunity finding
+            const scanResult = Math.random() > 0.3; // 70% chance of finding something
+            
+            if (scanResult && agent.assignedProtocol) {
+              // Generate a random opportunity
+              const protocol = await storage.getProtocol(agent.assignedProtocol);
+              const network = agent.assignedNetwork ? await storage.getNetwork(agent.assignedNetwork) : null;
+              
+              if (protocol && network) {
+                // Create a new opportunity
+                const baseApy = 5 + (Math.random() * 20); // Between 5% and 25%
+                const opportunity = await storage.createOpportunity({
+                  protocolId: protocol.id,
+                  networkId: network.id,
+                  asset: ["USDC", "ETH", "DAI", "WBTC"][Math.floor(Math.random() * 4)],
+                  apy: baseApy,
+                  tvl: 50000000 + (Math.random() * 500000000),
+                  riskLevel: baseApy > 15 ? "high" : baseApy > 10 ? "medium" : "low",
+                  details: `${protocol.name} yield opportunity found by agent ${agent.name} during parallel scan`,
+                  url: protocol.website || ""
+                });
+                
+                // Update agent with success
+                await storage.updateAgentInstance(agent.id, {
+                  status: "idle",
+                  currentTask: "Waiting for next scan",
+                  performance: {
+                    successRate: Math.min(100, ((agent.performance as any)?.successRate || 90) + 1),
+                    opportunitiesFound: ((agent.performance as any)?.opportunitiesFound || 0) + 1,
+                    lastFound: new Date().toISOString()
+                  }
+                });
+                
+                // Create activity log
+                await storage.createActivity({
+                  type: "opportunity",
+                  description: `Agent ${agent.name} found new yield opportunity on ${protocol.name} (parallel scan)`,
+                  details: { opportunityId: opportunity.id, agentId: agent.id, parallelScan: true },
+                  userId: null
+                });
+              }
+            } else {
+              // No opportunity found, update agent
+              await storage.updateAgentInstance(agent.id, {
+                status: "idle",
+                currentTask: "Waiting for next scan",
+                performance: {
+                  successRate: Math.max(80, (((agent.performance as any)?.successRate || 90) - 0.5)),
+                  opportunitiesFound: ((agent.performance as any)?.opportunitiesFound || 0)
+                }
+              });
+            }
+          } catch (e) {
+            console.error("Error in parallel scan task:", e);
+            // Update agent with error status
+            await storage.updateAgentInstance(agent.id, {
+              status: "error",
+              currentTask: "Parallel scan failed - see logs"
+            });
+          }
+        }, 3000 + Math.floor(Math.random() * 4000)); // Simulate 3-7 second scan with random completion times
+      }
+      
+      // Create activity for parallel scan
+      await storage.createActivity({
+        type: "agent",
+        description: `Started parallel scanning with ${startedScans.length} agents`,
+        details: { agentIds: startedScans.map(a => a.id), configId },
+        userId: null
+      });
+      
+      res.json({
+        message: `Parallel scan initiated with ${startedScans.length} agents`,
+        agents: startedScans
+      });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
