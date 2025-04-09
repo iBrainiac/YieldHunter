@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -252,38 +252,3 @@ export type InsertYieldStrategy = z.infer<typeof insertYieldStrategySchema>;
 
 export type StrategyExecution = typeof strategyExecutions.$inferSelect;
 export type InsertStrategyExecution = z.infer<typeof insertStrategyExecutionSchema>;
-
-// Create notification type enums
-export const notificationTypeEnum = pgEnum('notification_type', ['opportunity', 'strategy', 'system']);
-export const notificationStatusEnum = pgEnum('notification_status', ['unread', 'read', 'archived']);
-
-// Notifications table
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id"),
-  type: notificationTypeEnum("type").notNull(),
-  title: text("title").notNull(),
-  message: text("message").notNull(),
-  status: notificationStatusEnum("status").notNull().default('unread'),
-  createdAt: timestamp("created_at").defaultNow(),
-  readAt: timestamp("read_at"),
-  opportunityId: integer("opportunity_id"),
-  strategyId: integer("strategy_id"),
-  link: text("link"),
-  metadata: jsonb("metadata"), // Additional details about the notification
-});
-
-export const insertNotificationSchema = createInsertSchema(notifications).pick({
-  userId: true,
-  type: true,
-  title: true,
-  message: true,
-  status: true,
-  opportunityId: true,
-  strategyId: true,
-  link: true,
-  metadata: true,
-});
-
-export type Notification = typeof notifications.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
