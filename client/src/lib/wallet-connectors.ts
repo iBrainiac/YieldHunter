@@ -27,10 +27,9 @@ export const walletConnectConnector = new WalletConnectConnector({
   qrcode: true
 });
 
-export type WalletType = 'metamask' | 'walletconnect' | 'smartwallet';
+export type WalletType = 'metamask' | 'walletconnect' | 'smartwallet' | 'coinbase';
 
-// For smart wallet, we'll use WalletConnect as the underlying protocol
-// but will handle account abstraction separately
+// For wallet connections, we'll use the appropriate connector based on the wallet type
 export const getConnector = (walletType: WalletType) => {
   switch (walletType) {
     case 'metamask':
@@ -38,6 +37,10 @@ export const getConnector = (walletType: WalletType) => {
     case 'walletconnect':
     case 'smartwallet': // Smart wallets typically connect via WalletConnect protocol
       return walletConnectConnector;
+    case 'coinbase':
+      // For Coinbase AgentKit, we'll use the injected connector with special handling
+      // in the wallet hook
+      return injectedConnector;
     default:
       return injectedConnector;
   }
