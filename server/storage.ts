@@ -311,7 +311,12 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      walletAddress: insertUser.walletAddress ?? null,
+      balance: insertUser.balance ?? null 
+    };
     this.users.set(id, user);
     return user;
   }
@@ -327,7 +332,12 @@ export class MemStorage implements IStorage {
 
   async createProtocol(protocol: InsertProtocol): Promise<Protocol> {
     const id = this.protocolId++;
-    const newProtocol: Protocol = { ...protocol, id };
+    const newProtocol: Protocol = { 
+      ...protocol, 
+      id,
+      website: protocol.website ?? null,
+      description: protocol.description ?? null
+    };
     this.protocols.set(id, newProtocol);
     return newProtocol;
   }
@@ -343,7 +353,12 @@ export class MemStorage implements IStorage {
 
   async createNetwork(network: InsertNetwork): Promise<Network> {
     const id = this.networkId++;
-    const newNetwork: Network = { ...network, id };
+    const newNetwork: Network = { 
+      ...network, 
+      id,
+      logo: network.logo ?? null,
+      isActive: network.isActive ?? null
+    };
     this.networks.set(id, newNetwork);
     return newNetwork;
   }
@@ -360,7 +375,14 @@ export class MemStorage implements IStorage {
   async createOpportunity(opportunity: InsertOpportunity): Promise<Opportunity> {
     const id = this.opportunityId++;
     const timestamp = new Date();
-    const newOpportunity: Opportunity = { ...opportunity, id, timestamp };
+    const newOpportunity: Opportunity = { 
+      ...opportunity, 
+      id, 
+      timestamp,
+      tvl: opportunity.tvl ?? null,
+      details: opportunity.details ?? null,
+      url: opportunity.url ?? null
+    };
     this.opportunities.set(id, newOpportunity);
     return newOpportunity;
   }
@@ -383,7 +405,14 @@ export class MemStorage implements IStorage {
   async createSocialPost(post: InsertSocialPost): Promise<SocialPost> {
     const id = this.postId++;
     const timestamp = new Date();
-    const newPost: SocialPost = { ...post, id, timestamp };
+    const newPost: SocialPost = { 
+      ...post, 
+      id, 
+      timestamp,
+      status: post.status ?? "pending", 
+      scheduledAt: post.scheduledAt ?? null,
+      opportunityId: post.opportunityId ?? null
+    };
     this.socialPosts.set(id, newPost);
     
     // Create activity for the post
@@ -405,7 +434,13 @@ export class MemStorage implements IStorage {
   async createActivity(activity: InsertActivity): Promise<Activity> {
     const id = this.activityId++;
     const timestamp = new Date();
-    const newActivity: Activity = { ...activity, id, timestamp };
+    const newActivity: Activity = { 
+      ...activity, 
+      id, 
+      timestamp,
+      details: activity.details ?? {},
+      userId: activity.userId ?? null
+    };
     this.activities.set(id, newActivity);
     return newActivity;
   }
@@ -423,7 +458,16 @@ export class MemStorage implements IStorage {
 
   async createAgentConfiguration(config: InsertAgentConfiguration): Promise<AgentConfiguration> {
     const id = this.configId++;
-    const newConfig: AgentConfiguration = { ...config, id };
+    const newConfig: AgentConfiguration = { 
+      ...config, 
+      id,
+      userId: config.userId ?? null,
+      scanFrequency: config.scanFrequency ?? "daily",
+      riskTolerance: config.riskTolerance ?? "medium",
+      postingMode: config.postingMode ?? "manual",
+      parallelScanning: config.parallelScanning ?? false,
+      maxAgents: config.maxAgents ?? 1 
+    };
     this.agentConfigurations.set(id, newConfig);
     return newConfig;
   }
@@ -460,7 +504,11 @@ export class MemStorage implements IStorage {
       id, 
       createdAt,
       status: instance.status || "idle",
-      lastScanTime: null 
+      lastScanTime: null,
+      assignedProtocol: instance.assignedProtocol ?? null,
+      assignedNetwork: instance.assignedNetwork ?? null,
+      currentTask: instance.currentTask ?? null,
+      performance: instance.performance ?? {} 
     };
     
     this.agentInstances.set(id, newInstance);
