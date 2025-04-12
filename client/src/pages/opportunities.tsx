@@ -116,6 +116,8 @@ export default function OpportunitiesPage() {
                     <SelectItem value="polygon">Polygon</SelectItem>
                     <SelectItem value="bsc">BSC</SelectItem>
                     <SelectItem value="arbitrum">Arbitrum</SelectItem>
+                    <SelectItem value="base">Base</SelectItem>
+                    <SelectItem value="optimism">Optimism</SelectItem>
                   </SelectContent>
                 </Select>
                 
