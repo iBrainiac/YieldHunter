@@ -425,7 +425,7 @@ function AccountSettings() {
                 </div>
                 <div>
                   <p className="font-medium">Twitter</p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">@yield_hawk_ai</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">@yield_hunter_ai</p>
                 </div>
               </div>
               <Button variant="outline" size="sm">Disconnect</Button>
@@ -438,7 +438,7 @@ function AccountSettings() {
                 </div>
                 <div>
                   <p className="font-medium">Farcaster</p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">@yieldhawk</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">@yieldhunter</p>
                 </div>
               </div>
               <Button variant="outline" size="sm">Disconnect</Button>

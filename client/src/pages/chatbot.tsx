@@ -6,7 +6,7 @@ export default function ChatbotPage() {
   return (
     <div className="container py-8">
       <Helmet>
-        <title>AI Assistant | YieldHawk</title>
+        <title>AI Assistant | YieldHunter</title>
       </Helmet>
       
       <div className="mb-8">
