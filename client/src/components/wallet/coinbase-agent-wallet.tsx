@@ -67,8 +67,8 @@ export function CoinbaseAgentWallet({ onConnected, onDisconnected }: CoinbaseAge
 
   const handleConnect = async () => {
     try {
-      // Use 'coinbase' as the wallet type for AgentKit (type matches WalletType)
-      await connect('coinbase' as any);
+      // Use 'walletconnect' as the wallet type for external wallet integration
+      await connect('walletconnect');
       toast({
         title: 'Connected',
         description: 'Wallet connected successfully',
@@ -108,35 +108,32 @@ export function CoinbaseAgentWallet({ onConnected, onDisconnected }: CoinbaseAge
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
-            Coinbase AgentKit
-            <Badge variant="outline" className="ml-1 bg-blue-50 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              Beta
-            </Badge>
+            External Wallet Connection
           </CardTitle>
           <CardDescription>
-            Connect your wallet to access enhanced yield farming features
+            Connect your wallet to access yield farming features
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center space-y-4 py-8">
           <div className="flex flex-col items-center text-center space-y-2 mb-4">
             <ShieldCheck className="h-12 w-12 text-blue-500 mb-2 opacity-80" />
-            <h3 className="text-xl font-semibold">Smart Accounts</h3>
+            <h3 className="text-xl font-semibold">External Wallet</h3>
             <p className="text-muted-foreground text-sm max-w-sm">
-              Coinbase AgentKit provides advanced wallet features, including gasless transactions and automated yield farming
+              Connect your external wallet to access YieldHunter's advanced yield farming features
             </p>
           </div>
           <ul className="text-sm space-y-2 text-muted-foreground mb-4">
             <li className="flex items-center">
               <Check className="h-4 w-4 mr-2 text-green-500" />
-              Social recovery options
+              Yield optimization strategies
             </li>
             <li className="flex items-center">
               <Check className="h-4 w-4 mr-2 text-green-500" />
-              Gasless transactions (no ETH needed)
+              AI-powered opportunity analysis
             </li>
             <li className="flex items-center">
               <Check className="h-4 w-4 mr-2 text-green-500" />
-              Batch transactions for efficient swaps & deposits
+              Multi-chain transaction support
             </li>
           </ul>
         </CardContent>
@@ -172,7 +169,7 @@ export function CoinbaseAgentWallet({ onConnected, onDisconnected }: CoinbaseAge
           <div>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
-              Coinbase Smart Wallet
+              External Wallet
             </CardTitle>
             <CardDescription className="mt-1">
               <span className="font-mono">{walletState.address.substring(0, 6)}...{walletState.address.substring(walletState.address.length - 4)}</span>
@@ -209,20 +206,20 @@ export function CoinbaseAgentWallet({ onConnected, onDisconnected }: CoinbaseAge
             <div className="bg-muted/50 rounded-lg p-4 space-y-3">
               <h4 className="font-medium flex items-center">
                 <ShieldCheck className="h-4 w-4 mr-1.5 text-green-500" />
-                AgentKit Features Available
+                YieldHunter Features Available
               </h4>
               <ul className="text-sm space-y-2">
                 <li className="flex items-center text-muted-foreground">
                   <Check className="h-3.5 w-3.5 mr-1.5 text-green-500" />
-                  Gasless transactions enabled
+                  OpenAI opportunity analysis
                 </li>
                 <li className="flex items-center text-muted-foreground">
                   <Check className="h-3.5 w-3.5 mr-1.5 text-green-500" />
-                  Social recovery configured
+                  Real-time APY tracking
                 </li>
                 <li className="flex items-center text-muted-foreground">
                   <Check className="h-3.5 w-3.5 mr-1.5 text-green-500" />
-                  OpenAI analysis available
+                  Multi-chain deposits and withdrawals
                 </li>
               </ul>
             </div>
