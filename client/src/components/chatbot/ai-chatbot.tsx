@@ -183,7 +183,7 @@ export function AIChatbot({ initialMessages = [], autoScan = false }: AIChatbotP
 **Recommendation Score**: ${analysis.recommendationScore}/10
 
 **Potential Issues**:
-${analysis.potentialIssues.map(issue => `- ${issue}`).join('\n')}
+${analysis.potentialIssues.map((issue: string) => `- ${issue}`).join('\n')}
 
 Would you like me to help you invest in this opportunity?`;
       
