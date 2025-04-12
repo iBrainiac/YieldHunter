@@ -960,6 +960,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OpenAI-powered chatbot endpoints
+  app.post("/api/chatbot/message", async (req: Request, res: Response) => {
+    try {
+      const { message, history } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      const response = await openAI.processChatbotMessage(message, history || []);
+      
+      // Create activity for the chat interaction
+      await storage.createActivity({
+        type: "chat",
+        description: "Interacted with YieldHunter AI assistant",
+        details: { 
+          userMessage: message.substring(0, 100) + (message.length > 100 ? "..." : ""),
+          timestamp: new Date().toISOString()
+        },
+        userId: null
+      });
+      
+      res.json({ response });
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // AI Opportunity Analysis endpoint
+  app.post("/api/analyze/opportunity", async (req: Request, res: Response) => {
+    try {
+      const { protocolName, asset, apy, riskLevel, networkName } = req.body;
+      
+      if (!protocolName || !asset || apy === undefined || !riskLevel || !networkName) {
+        return res.status(400).json({ message: "Missing required opportunity details" });
+      }
+      
+      const analysis = await openAI.analyzeYieldOpportunity(
+        protocolName,
+        asset,
+        apy,
+        riskLevel,
+        networkName
+      );
+      
+      res.json(analysis);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // AI Strategy Generator endpoint
+  app.post("/api/generate/strategy", async (req: Request, res: Response) => {
+    try {
+      const { riskProfile, assets, networks, investmentAmount } = req.body;
+      
+      if (!riskProfile || !assets || !networks || !investmentAmount) {
+        return res.status(400).json({ message: "Missing required strategy parameters" });
+      }
+      
+      const strategy = await openAI.generateYieldStrategy(
+        riskProfile,
+        assets,
+        networks,
+        investmentAmount
+      );
+      
+      res.json(strategy);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Market Trends Analysis endpoint
+  app.post("/api/analyze/market", async (req: Request, res: Response) => {
+    try {
+      const { recentTrends, topPerformingAssets, timeframe } = req.body;
+      
+      if (!recentTrends || !topPerformingAssets || !timeframe) {
+        return res.status(400).json({ message: "Missing required market analysis parameters" });
+      }
+      
+      const analysis = await openAI.analyzeMarketTrends(
+        recentTrends,
+        topPerformingAssets,
+        timeframe
+      );
+      
+      res.json(analysis);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Educational Content Generator endpoint
+  app.post("/api/generate/education", async (req: Request, res: Response) => {
+    try {
+      const { topic, complexityLevel } = req.body;
+      
+      if (!topic || !complexityLevel) {
+        return res.status(400).json({ message: "Topic and complexity level are required" });
+      }
+      
+      const content = await openAI.generateEducationalContent(
+        topic,
+        complexityLevel
+      );
+      
+      res.json(content);
+    } catch (error) {
+      handleError(res, error);
+    }
+  });
+  
+  // Set up WebSockets for real-time communication
   const httpServer = createServer(app);
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  wss.on('connection', (ws) => {
+    console.log('Client connected to WebSocket');
+    
+    // Send initial connection success message
+    ws.send(JSON.stringify({
+      type: 'connection',
+      message: 'Connected to YieldHunter WebSocket server',
+      timestamp: new Date().toISOString()
+    }));
+    
+    // Handle incoming messages
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        // Handle different message types
+        if (message.type === 'scan_request') {
+          // Simulate a scanning process
+          ws.send(JSON.stringify({
+            type: 'scan_started',
+            message: 'Starting yield opportunity scan',
+            timestamp: new Date().toISOString()
+          }));
+          
+          // Simulate processing time
+          setTimeout(() => {
+            ws.send(JSON.stringify({
+              type: 'scan_result',
+              data: {
+                opportunities: [
+                  { protocol: 'Aave v3', asset: 'USDC', apy: 3.2, network: 'Base' },
+                  { protocol: 'Compound', asset: 'ETH', apy: 4.1, network: 'Base' },
+                  { protocol: 'Balancer', asset: 'USDT', apy: 3.8, network: 'Base' }
+                ],
+                scanTime: new Date().toISOString()
+              },
+              timestamp: new Date().toISOString()
+            }));
+          }, 2000);
+          
+        } else if (message.type === 'chatbot_message') {
+          // Process chat message with AI
+          const response = await openAI.processChatbotMessage(message.content, message.history || []);
+          
+          ws.send(JSON.stringify({
+            type: 'chatbot_response',
+            data: {
+              response,
+              timestamp: new Date().toISOString()
+            }
+          }));
+        }
+        
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Error processing message',
+          timestamp: new Date().toISOString()
+        }));
+      }
+    });
+    
+    // Handle disconnection
+    ws.on('close', () => {
+      console.log('Client disconnected from WebSocket');
+    });
+  });
+  
   return httpServer;
 }

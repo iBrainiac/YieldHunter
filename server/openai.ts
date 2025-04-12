@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 // Initialize the OpenAI client with the API key from environment variables
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -46,7 +47,8 @@ export async function analyzeYieldOpportunity(
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error analyzing yield opportunity:", error);
     return {
@@ -100,7 +102,8 @@ export async function generateYieldStrategy(
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error generating yield strategy:", error);
     return {
@@ -151,7 +154,8 @@ export async function analyzeMarketTrends(
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error analyzing market trends:", error);
     return {
@@ -199,7 +203,8 @@ export async function generateEducationalContent(
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content || "";
+    return JSON.parse(content);
   } catch (error) {
     console.error("Error generating educational content:", error);
     return {
@@ -214,18 +219,18 @@ export async function generateEducationalContent(
 // Chatbot function to interact with users
 export async function processChatbotMessage(
   message: string,
-  chatHistory: Array<{role: string, content: string}>
+  chatHistory: Array<ChatCompletionMessageParam>
 ): Promise<string> {
   try {
     // Prepare the conversation history
-    const conversationHistory = [
+    const conversationHistory: ChatCompletionMessageParam[] = [
       {
-        role: "system" as const,
+        role: "system",
         content: "You are YieldHunter AI, an expert assistant for DeFi yield farming. You help users understand DeFi opportunities, assess risks, and make informed decisions about yield farming. Keep responses concise, accurate, and focused on DeFi yield farming."
       },
       ...chatHistory,
       {
-        role: "user" as const,
+        role: "user",
         content: message
       }
     ];
