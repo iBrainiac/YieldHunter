@@ -133,7 +133,6 @@ export class MemStorage implements IStorage {
       { name: "Binance Smart Chain", shortName: "BSC", logo: "B", isActive: true },
       { name: "Arbitrum", shortName: "ARB", logo: "A", isActive: true },
       { name: "Optimism", shortName: "OP", logo: "O", isActive: true },
-      { name: "Solana", shortName: "SOL", logo: "S", isActive: true },
       { name: "Base", shortName: "BASE", logo: "B", isActive: true }
     ];
     

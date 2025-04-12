@@ -257,6 +257,14 @@ function AgentSettings() {
                     />
                     <Label htmlFor="network-optimism">Optimism</Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="network-base" 
+                      checked={config.networks.includes("base")}
+                      onCheckedChange={(checked) => handleNetworkChange("base", checked as boolean)}
+                    />
+                    <Label htmlFor="network-base">Base</Label>
+                  </div>
                 </div>
               </div>
               
