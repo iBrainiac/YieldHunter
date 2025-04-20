@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import WalletConnector from "@/components/wallet/wallet-connector";
+import AdminNavItem from "@/components/admin/AdminNavItem";
 import { 
   ChartBarStacked, 
   ListOrdered, 
@@ -144,6 +145,18 @@ export default function Sidebar({ className }: SidebarProps) {
                 </Link>
               </div>
             ))}
+            
+            {/* Admin Navigation Item - Only shown to admin users */}
+            {!collapsed ? (
+              <AdminNavItem />
+            ) : (
+              <div className="admin-nav-item">
+                {/* If collapsed, we still want to render the admin nav item, but with different styling */}
+                <div className="hidden">
+                  <AdminNavItem />
+                </div>
+              </div>
+            )}
           </div>
         </nav>
 

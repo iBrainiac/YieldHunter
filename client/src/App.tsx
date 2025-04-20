@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WalletProvider } from "@/hooks/use-wallet";
+import { AdminProvider } from "@/hooks/use-admin";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Opportunities from "@/pages/opportunities";
@@ -13,11 +14,12 @@ import Settings from "@/pages/settings";
 import Agents from "@/pages/agents";
 import YieldStrategies from "@/pages/strategies";
 import Chatbot from "@/pages/chatbot";
+import AdminPage from "@/pages/admin";
 import Sidebar from "@/components/layout/sidebar";
 import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
 // Routes that should be accessible without subscription
-const publicRoutes = ["/", "/settings"];
+const publicRoutes = ["/", "/settings", "/admin"];
 
 function Router() {
   // Use wouter's useLocation to get the current path
@@ -40,6 +42,7 @@ function Router() {
           <Route path="/strategies" component={YieldStrategies} />
           <Route path="/chatbot" component={Chatbot} />
           <Route path="/settings" component={Settings} />
+          <Route path="/admin" component={AdminPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -64,8 +67,10 @@ function App() {
     <ThemeProvider defaultTheme="light">
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
-          <Router />
-          <Toaster />
+          <AdminProvider>
+            <Router />
+            <Toaster />
+          </AdminProvider>
         </WalletProvider>
       </QueryClientProvider>
     </ThemeProvider>
