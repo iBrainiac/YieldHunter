@@ -14,9 +14,17 @@ import Agents from "@/pages/agents";
 import YieldStrategies from "@/pages/strategies";
 import Chatbot from "@/pages/chatbot";
 import Sidebar from "@/components/layout/sidebar";
+import SubscriptionGate from "@/components/subscription/SubscriptionGate";
+
+// Routes that should be accessible without subscription
+const publicRoutes = ["/", "/settings"];
 
 function Router() {
-  return (
+  const currentPath = window.location.pathname;
+  const isPublicRoute = publicRoutes.includes(currentPath);
+  
+  // For the content that requires subscription
+  const subscribedContent = (
     <div className="min-h-screen flex flex-col md:flex-row">
       <Sidebar />
       <main className="flex-1 overflow-auto">
@@ -33,6 +41,18 @@ function Router() {
         </Switch>
       </main>
     </div>
+  );
+
+  // If it's a public route, don't wrap in subscription gate
+  if (isPublicRoute) {
+    return subscribedContent;
+  }
+
+  // Otherwise, check for subscription
+  return (
+    <SubscriptionGate>
+      {subscribedContent}
+    </SubscriptionGate>
   );
 }
 
