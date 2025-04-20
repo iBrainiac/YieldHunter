@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ethers } from 'ethers';
+import { ethers, BrowserProvider } from 'ethers';
 import { useWallet } from '@/hooks/use-wallet';
 import { 
   isSubscribed, 
@@ -24,25 +24,47 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
   const [subscriptionFee, setSubscriptionFee] = useState<string>('0');
   const { toast } = useToast();
 
+  // Helper function to determine the network name
+  const getNetworkName = () => {
+    if (!walletState?.connectorType) return 'ethereum';
+    // For different wallet types, we might use different networks
+    switch (walletState.connectorType) {
+      case 'walletconnect':
+        return 'ethereum';
+      case 'smartwallet':
+        return 'base';
+      case 'metamask':
+      default:
+        return 'ethereum';
+    }
+  };
+
   useEffect(() => {
     const checkSubscription = async () => {
       if (walletState?.connected && walletState.address) {
         setIsLoading(true);
         try {
+          if (!window.ethereum) {
+            console.error('No ethereum provider found');
+            setHasSubscription(false);
+            setIsLoading(false);
+            return;
+          }
+
           // Get provider
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
+          const provider = new BrowserProvider(window.ethereum);
           
           // Check if user is subscribed
           const hasActiveSubscription = await isSubscribed(
             provider, 
             walletState.address,
-            walletState.connectorType === 'coinbase-wallet' ? 'base' : 'ethereum'
+            getNetworkName()
           );
           
           // Get subscription fee
           const fee = await getSubscriptionFee(
             provider,
-            walletState.connectorType === 'coinbase-wallet' ? 'base' : 'ethereum'
+            getNetworkName()
           );
           
           setSubscriptionFee(fee);
@@ -72,12 +94,21 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
       return;
     }
 
+    if (!window.ethereum) {
+      toast({
+        title: 'No wallet provider found',
+        description: 'Please make sure your wallet is properly connected',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new BrowserProvider(window.ethereum);
       const result = await subscribe(
         provider,
-        walletState.connectorType === 'coinbase-wallet' ? 'base' : 'ethereum'
+        getNetworkName()
       );
 
       if (result.success) {
@@ -94,11 +125,11 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
           variant: 'destructive'
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during subscription:', error);
       toast({
         title: 'Subscription error',
-        description: 'There was an error processing your subscription',
+        description: error.message || 'There was an error processing your subscription',
         variant: 'destructive'
       });
     } finally {
@@ -141,7 +172,7 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
         <CardContent className="space-y-4">
           <div className="rounded-lg bg-muted p-6 flex flex-col items-center justify-center text-center space-y-3">
             <p className="text-lg font-medium">One-time access fee</p>
-            <p className="text-3xl font-bold">${formatSubscriptionFee(subscriptionFee) === "0.01" ? "10" : "10"}</p>
+            <p className="text-3xl font-bold">$10</p>
             <p className="text-sm text-muted-foreground">
               Approximately {formatSubscriptionFee(subscriptionFee)} ETH
             </p>

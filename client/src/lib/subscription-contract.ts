@@ -31,7 +31,8 @@ export function getSubscriptionContract(provider: BrowserProvider, networkName: 
 export async function isSubscribed(provider: BrowserProvider, address: string, networkName: string): Promise<boolean> {
   try {
     const contract = getSubscriptionContract(provider, networkName);
-    return await contract.isSubscribed(address);
+    // Use getFunction to access contract methods safely
+    return await contract.getFunction('isSubscribed')(address);
   } catch (error) {
     console.error('Error checking subscription status:', error);
     return false;
@@ -44,7 +45,8 @@ export async function isSubscribed(provider: BrowserProvider, address: string, n
 export async function getSubscriptionFee(provider: BrowserProvider, networkName: string): Promise<string> {
   try {
     const contract = getSubscriptionContract(provider, networkName);
-    const fee = await contract.subscriptionFee();
+    // Use getFunction to access contract methods safely
+    const fee = await contract.getFunction('subscriptionFee')();
     return fee.toString();
   } catch (error) {
     console.error('Error getting subscription fee:', error);
@@ -61,11 +63,12 @@ export async function subscribe(provider: BrowserProvider, networkName: string):
     const signer = await provider.getSigner();
     
     // Get the subscription fee
-    const fee = await contract.subscriptionFee();
+    const fee = await contract.getFunction('subscriptionFee')();
     
     // Execute the transaction
     const contractWithSigner = contract.connect(signer);
-    const tx = await contractWithSigner.subscribe({ value: fee });
+    // Since we can't directly call 'subscribe' on a generic Contract, we use the function fragment from the ABI
+    const tx = await contractWithSigner.getFunction('subscribe')({ value: fee });
     const receipt = await tx.wait();
     
     return {
