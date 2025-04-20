@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { ethers, BrowserProvider } from "ethers";
 import { useWallet } from "@/hooks/use-wallet";
-import { isContractOwner } from "@/lib/subscription-contract";
+// We'll import dynamically to avoid circular dependencies
 import { useToast } from "@/hooks/use-toast";
 
 interface AdminContextType {
@@ -39,6 +39,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       try {
         const provider = new BrowserProvider(window.ethereum);
         const networkName = walletState.connectorType === 'smartwallet' ? 'base' : 'ethereum';
+        
+        // Import dynamically to avoid circular dependencies
+        const { isContractOwner } = await import('@/lib/subscription-contract');
         
         const ownerStatus = await isContractOwner(
           provider,
