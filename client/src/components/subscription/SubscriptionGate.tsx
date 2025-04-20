@@ -44,31 +44,41 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
       if (walletState?.connected && walletState.address) {
         setIsLoading(true);
         try {
-          if (!window.ethereum) {
-            console.error('No ethereum provider found');
+          // In development or testing, we might not have window.ethereum
+          if (typeof window === 'undefined' || !window.ethereum) {
+            console.warn('No ethereum provider found - This is expected during development');
+            // For development, we'll assume not subscribed
             setHasSubscription(false);
+            setSubscriptionFee('10000000000000000'); // 0.01 ETH for display purposes
             setIsLoading(false);
             return;
           }
 
-          // Get provider
-          const provider = new BrowserProvider(window.ethereum);
-          
-          // Check if user is subscribed
-          const hasActiveSubscription = await isSubscribed(
-            provider, 
-            walletState.address,
-            getNetworkName()
-          );
-          
-          // Get subscription fee
-          const fee = await getSubscriptionFee(
-            provider,
-            getNetworkName()
-          );
-          
-          setSubscriptionFee(fee);
-          setHasSubscription(hasActiveSubscription);
+          try {
+            // Get provider - wrap this in its own try/catch
+            const provider = new BrowserProvider(window.ethereum);
+            
+            // Check if user is subscribed
+            const hasActiveSubscription = await isSubscribed(
+              provider, 
+              walletState.address,
+              getNetworkName()
+            );
+            
+            // Get subscription fee
+            const fee = await getSubscriptionFee(
+              provider,
+              getNetworkName()
+            );
+            
+            setSubscriptionFee(fee || '10000000000000000'); // Default to 0.01 ETH if fee is falsy
+            setHasSubscription(hasActiveSubscription);
+          } catch (web3Error) {
+            console.warn('Web3 provider error:', web3Error);
+            // If the provider fails, we'll assume not subscribed 
+            setHasSubscription(false);
+            setSubscriptionFee('10000000000000000');
+          }
         } catch (error) {
           console.error('Error checking subscription:', error);
           setHasSubscription(false);
@@ -81,7 +91,14 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
       }
     };
 
-    checkSubscription();
+    // Wrap the async function call in a try/catch
+    try {
+      checkSubscription();
+    } catch (err) {
+      console.error('Unexpected error in subscription check:', err);
+      setIsLoading(false);
+      setHasSubscription(false);
+    }
   }, [walletState]);
 
   const handleSubscribe = async () => {
@@ -94,10 +111,10 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
       return;
     }
 
-    if (!window.ethereum) {
+    if (typeof window === 'undefined' || !window.ethereum) {
       toast({
         title: 'No wallet provider found',
-        description: 'Please make sure your wallet is properly connected',
+        description: 'Please install MetaMask or another Web3 wallet to continue',
         variant: 'destructive'
       });
       return;
@@ -105,23 +122,47 @@ const SubscriptionGate: React.FC<SubscriptionGateProps> = ({ children }) => {
 
     setIsProcessing(true);
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const result = await subscribe(
-        provider,
-        getNetworkName()
-      );
-
-      if (result.success) {
+      // For demo/development environment, we'll simulate a successful subscription
+      if (process.env.NODE_ENV === 'development' && !window.ethereum.isMetaMask) {
+        // Simulate a delay for the transaction
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         toast({
-          title: 'Subscription successful!',
+          title: 'Subscription successful! (Demo)',
           description: 'Your subscription has been activated',
           variant: 'default'
         });
         setHasSubscription(true);
-      } else {
+        setIsProcessing(false);
+        return;
+      }
+
+      try {
+        const provider = new BrowserProvider(window.ethereum);
+        const result = await subscribe(
+          provider,
+          getNetworkName()
+        );
+
+        if (result.success) {
+          toast({
+            title: 'Subscription successful!',
+            description: 'Your subscription has been activated',
+            variant: 'default'
+          });
+          setHasSubscription(true);
+        } else {
+          toast({
+            title: 'Subscription failed',
+            description: result.error || 'An error occurred while processing your subscription',
+            variant: 'destructive'
+          });
+        }
+      } catch (web3Error: any) {
+        console.error('Web3 subscription error:', web3Error);
         toast({
-          title: 'Subscription failed',
-          description: result.error || 'An error occurred while processing your subscription',
+          title: 'Subscription error',
+          description: web3Error.message || 'There was an error processing your subscription',
           variant: 'destructive'
         });
       }
