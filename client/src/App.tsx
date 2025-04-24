@@ -15,6 +15,7 @@ import Agents from "@/pages/agents";
 import YieldStrategies from "@/pages/strategies";
 import Chatbot from "@/pages/chatbot";
 import AdminPage from "@/pages/admin";
+import TelegramPage from "@/pages/telegram";
 import Sidebar from "@/components/layout/sidebar";
 import SubscriptionGate from "@/components/subscription/SubscriptionGate";
 
@@ -41,6 +42,7 @@ function Router() {
           <Route path="/agents" component={Agents} />
           <Route path="/strategies" component={YieldStrategies} />
           <Route path="/chatbot" component={Chatbot} />
+          <Route path="/telegram" component={TelegramPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminPage} />
           <Route component={NotFound} />

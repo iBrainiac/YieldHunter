@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Cpu,
   Bot,
-  BarChart
+  BarChart,
+  MessageCircle
 } from "lucide-react";
 
 interface NavItem {
@@ -57,6 +58,11 @@ const navItems: NavItem[] = [
     title: "AI Assistant",
     href: "/chatbot",
     icon: <Bot className="h-5 w-5 mr-3" />,
+  },
+  {
+    title: "Telegram",
+    href: "/telegram",
+    icon: <MessageCircle className="h-5 w-5 mr-3" />,
   },
   {
     title: "Settings",

@@ -965,13 +965,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Telegram bot if token is available
   if (process.env.TELEGRAM_BOT_TOKEN) {
     try {
-      const { initTelegramBot } = require('./telegram/bot');
-      initTelegramBot().then((success: boolean) => {
-        if (success) {
-          console.log('✅ Telegram bot initialized successfully');
-        } else {
-          console.warn('⚠️ Telegram bot initialization failed');
-        }
+      import('./telegram/bot').then(module => {
+        const { initTelegramBot } = module;
+        initTelegramBot().then((success: boolean) => {
+          if (success) {
+            console.log('✅ Telegram bot initialized successfully');
+          } else {
+            console.warn('⚠️ Telegram bot initialization failed');
+          }
+        });
+      }).catch(err => {
+        console.error('Error importing Telegram bot module:', err);
       });
     } catch (error) {
       console.error('Error initializing Telegram bot:', error);
