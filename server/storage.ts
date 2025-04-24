@@ -1,6 +1,7 @@
 import { 
   users, protocols, networks, opportunities, socialPosts, activities, 
   agentConfigurations, agentInstances, yieldStrategies, strategyExecutions,
+  telegramUsers,
   type User, type InsertUser, 
   type Protocol, type InsertProtocol,
   type Network, type InsertNetwork,
@@ -10,7 +11,8 @@ import {
   type AgentConfiguration, type InsertAgentConfiguration,
   type AgentInstance, type InsertAgentInstance,
   type YieldStrategy, type InsertYieldStrategy,
-  type StrategyExecution, type InsertStrategyExecution
+  type StrategyExecution, type InsertStrategyExecution,
+  type TelegramUser, type InsertTelegramUser
 } from "@shared/schema";
 
 // Storage interface with CRUD methods
@@ -71,6 +73,14 @@ export interface IStorage {
   getStrategyExecution(id: number): Promise<StrategyExecution | undefined>;
   createStrategyExecution(execution: InsertStrategyExecution): Promise<StrategyExecution>;
   executeYieldStrategy(strategyId: number): Promise<StrategyExecution>;
+  
+  // Telegram bot user methods
+  getTelegramUsers(): Promise<TelegramUser[]>;
+  getTelegramUser(id: number): Promise<TelegramUser | undefined>;
+  getTelegramUserByTelegramId(telegramId: number): Promise<TelegramUser | undefined>;
+  createTelegramUser(user: InsertTelegramUser): Promise<TelegramUser>;
+  updateTelegramUser(id: number, data: Partial<InsertTelegramUser>): Promise<TelegramUser | undefined>;
+  deleteTelegramUser(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -84,6 +94,7 @@ export class MemStorage implements IStorage {
   private agentInstances: Map<number, AgentInstance>;
   private yieldStrategies: Map<number, YieldStrategy>;
   private strategyExecutions: Map<number, StrategyExecution>;
+  private telegramUsers: Map<number, TelegramUser>;
   
   private userId: number;
   private protocolId: number;
@@ -95,6 +106,7 @@ export class MemStorage implements IStorage {
   private instanceId: number;
   private strategyId: number;
   private executionId: number;
+  private telegramUserId: number;
 
   constructor() {
     this.users = new Map();
@@ -107,6 +119,7 @@ export class MemStorage implements IStorage {
     this.agentInstances = new Map();
     this.yieldStrategies = new Map();
     this.strategyExecutions = new Map();
+    this.telegramUsers = new Map();
     
     this.userId = 1;
     this.protocolId = 1;
@@ -118,6 +131,7 @@ export class MemStorage implements IStorage {
     this.instanceId = 1;
     this.strategyId = 1;
     this.executionId = 1;
+    this.telegramUserId = 1;
     
     // Initialize with sample data for demo (using IIFE to handle async)
     (async () => {

@@ -252,3 +252,32 @@ export type InsertYieldStrategy = z.infer<typeof insertYieldStrategySchema>;
 
 export type StrategyExecution = typeof strategyExecutions.$inferSelect;
 export type InsertStrategyExecution = z.infer<typeof insertStrategyExecutionSchema>;
+
+// Table for storing Telegram bot users
+export const telegramUsers = pgTable("telegram_users", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  telegramId: integer("telegram_id").notNull().unique(),
+  username: text("username"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  walletAddress: text("wallet_address"),
+  isAuthenticated: boolean("is_authenticated").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastInteraction: timestamp("last_interaction").defaultNow().notNull(),
+  preferences: jsonb("preferences").notNull().default({}),
+});
+
+export const insertTelegramUserSchema = createInsertSchema(telegramUsers).pick({
+  userId: true,
+  telegramId: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  walletAddress: true,
+  isAuthenticated: true,
+  preferences: true,
+});
+
+export type TelegramUser = typeof telegramUsers.$inferSelect;
+export type InsertTelegramUser = z.infer<typeof insertTelegramUserSchema>;
