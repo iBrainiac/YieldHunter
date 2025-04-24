@@ -795,6 +795,69 @@ export class MemStorage implements IStorage {
       errorMessage: null
     });
   }
+
+  // Telegram user methods
+  async getTelegramUsers(): Promise<TelegramUser[]> {
+    return Array.from(this.telegramUsers.values());
+  }
+
+  async getTelegramUser(id: number): Promise<TelegramUser | undefined> {
+    return this.telegramUsers.get(id);
+  }
+
+  async getTelegramUserByTelegramId(telegramId: number): Promise<TelegramUser | undefined> {
+    return Array.from(this.telegramUsers.values()).find(
+      (user) => user.telegramId === telegramId
+    );
+  }
+
+  async createTelegramUser(user: InsertTelegramUser): Promise<TelegramUser> {
+    const id = this.telegramUserId++;
+    const now = new Date();
+    
+    const newUser: TelegramUser = {
+      ...user,
+      id,
+      userId: user.userId ?? null,
+      username: user.username ?? null,
+      firstName: user.firstName ?? null,
+      lastName: user.lastName ?? null,
+      walletAddress: user.walletAddress ?? null,
+      isAuthenticated: user.isAuthenticated ?? false,
+      createdAt: now,
+      lastInteraction: now,
+      preferences: user.preferences ?? {}
+    };
+    
+    this.telegramUsers.set(id, newUser);
+    
+    // Log the creation
+    console.log(`Created new Telegram user: ${id}, Telegram ID: ${user.telegramId}`);
+    
+    return newUser;
+  }
+
+  async updateTelegramUser(id: number, data: Partial<InsertTelegramUser>): Promise<TelegramUser | undefined> {
+    const existingUser = this.telegramUsers.get(id);
+    
+    if (!existingUser) {
+      return undefined;
+    }
+    
+    // Update with new data
+    const updatedUser: TelegramUser = {
+      ...existingUser,
+      ...data,
+      lastInteraction: new Date() // Always update the interaction time
+    };
+    
+    this.telegramUsers.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteTelegramUser(id: number): Promise<boolean> {
+    return this.telegramUsers.delete(id);
+  }
 }
 
 // Create and export the storage instance
