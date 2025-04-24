@@ -6,11 +6,48 @@ import { telegramService } from './service';
 // Create a router
 const telegramRouter = Router();
 
+// Bot status variables
+let botStatus = {
+  isActive: false,
+  startTime: null as Date | null,
+  username: "@YieldHunterBot",
+  connectedUsers: 0,
+  lastMessageSent: null as Date | null
+};
+
+// Get bot status
+telegramRouter.get('/status', async (req: Request, res: Response) => {
+  try {
+    // Update with real user count
+    const users = await storage.getTelegramUsers();
+    botStatus.connectedUsers = users.length;
+    
+    // Check if we have the token set, which means the bot can be active
+    botStatus.isActive = !!process.env.TELEGRAM_BOT_TOKEN;
+    
+    // If this is the first status check, set the start time
+    if (botStatus.isActive && !botStatus.startTime) {
+      botStatus.startTime = new Date();
+    }
+    
+    res.status(200).json(botStatus);
+  } catch (error: any) {
+    console.error('Error fetching bot status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get bot status', 
+      error: error.message 
+    });
+  }
+});
+
 // Initialize the bot
 telegramRouter.post('/init', async (req: Request, res: Response) => {
   try {
     const success = await initTelegramBot();
     if (success) {
+      botStatus.isActive = true;
+      botStatus.startTime = new Date();
       res.status(200).json({ success: true, message: 'Telegram bot initialized successfully' });
     } else {
       res.status(500).json({ success: false, message: 'Failed to initialize Telegram bot' });
@@ -103,11 +140,17 @@ telegramRouter.post('/broadcast', async (req: Request, res: Response) => {
     }
     
     const result = await telegramService.sendNotificationToSubscribers(message);
+    
+    // Update the last message sent timestamp
+    botStatus.lastMessageSent = new Date();
+    
     res.status(200).json({ 
       success: true, 
-      message: `Message sent to ${result.sent} users (${result.failed} failed)` 
+      message: `Message sent to ${result.sent} users (${result.failed} failed)`,
+      sent: result.sent,
+      failed: result.failed
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error broadcasting message:', error);
     res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }

@@ -54,18 +54,33 @@ export default function TelegramPage() {
     retry: false
   });
 
+  // Interface for bot status
+  interface BotStatus {
+    isActive: boolean;
+    startTime: string | null;
+    username: string;
+    connectedUsers: number;
+    lastMessageSent: string | null;
+  }
+
   // Query to get bot status
-  const { data: botStatus, isLoading: isBotStatusLoading } = useQuery<any>({
+  const { data: botStatus, isLoading: isBotStatusLoading } = useQuery<BotStatus>({
     queryKey: ['/api/telegram/status'],
     retry: false,
-    // If the endpoint doesn't exist yet, we can handle errors gracefully
-    enabled: false
+    enabled: true
   });
 
+  // Interface for init response
+  interface InitResponse {
+    success: boolean;
+    message: string;
+  }
+
   // Initialize bot mutation
-  const initBotMutation = useMutation({
+  const initBotMutation = useMutation<InitResponse, Error>({
     mutationFn: async () => {
-      return apiRequest('/api/telegram/init', 'POST');
+      const response = await apiRequest('/api/telegram/init', 'POST');
+      return response as InitResponse;
     },
     onSuccess: () => {
       toast({
@@ -84,9 +99,17 @@ export default function TelegramPage() {
   });
 
   // Broadcast message mutation
-  const broadcastMutation = useMutation({
+  interface BroadcastResponse {
+    success: boolean;
+    message: string;
+    sent: number;
+    failed: number;
+  }
+
+  const broadcastMutation = useMutation<BroadcastResponse, Error, string>({
     mutationFn: async (message: string) => {
-      return apiRequest('/api/telegram/broadcast', 'POST', { message });
+      const response = await apiRequest('/api/telegram/broadcast', 'POST', { message });
+      return response as BroadcastResponse;
     },
     onSuccess: (data) => {
       toast({
@@ -183,16 +206,29 @@ export default function TelegramPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <BotIcon className="h-6 w-6 mr-2 text-primary" />
-              <div>
-                <p className="text-sm font-medium">YieldHunter Bot</p>
-                <div className="flex items-center mt-1">
-                  <div className="h-2 w-2 rounded-full bg-green-500 mr-2"></div>
-                  <p className="text-xs text-muted-foreground">Active</p>
+            {isBotStatusLoading ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <BotIcon className="h-6 w-6 mr-2 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">{botStatus?.username || 'YieldHunter Bot'}</p>
+                  <div className="flex items-center mt-1">
+                    <div className={`h-2 w-2 rounded-full mr-2 ${botStatus?.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <p className="text-xs text-muted-foreground">
+                      {botStatus?.isActive ? 'Active' : 'Inactive'}
+                    </p>
+                  </div>
+                  {botStatus?.startTime && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Started: {new Date(botStatus.startTime).toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
