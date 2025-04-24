@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import telegramRouter from "./telegram/routes";
 import {
   insertUserSchema,
   insertProtocolSchema,
@@ -957,6 +958,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       handleError(res, error);
     }
   });
+
+  // Mount Telegram API routes
+  app.use("/api/telegram", telegramRouter);
+
+  // Initialize Telegram bot if token is available
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    try {
+      const { initTelegramBot } = require('./telegram/bot');
+      initTelegramBot().then((success: boolean) => {
+        if (success) {
+          console.log('✅ Telegram bot initialized successfully');
+        } else {
+          console.warn('⚠️ Telegram bot initialization failed');
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing Telegram bot:', error);
+    }
+  } else {
+    console.log('📝 TELEGRAM_BOT_TOKEN not set, skipping bot initialization');
+  }
 
   const httpServer = createServer(app);
   return httpServer;
