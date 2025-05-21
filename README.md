@@ -1,6 +1,9 @@
+https://replit.com/@hazardkrypto/YieldHunter
+
 YieldHunter
 YieldHunter is a DeFi yield optimization platform that helps users discover and manage high-yield 
 opportunities across multiple blockchain networks.
+
 X Account - https://x.com/Brainiac_A
 Table of Contents
 Prerequisites
